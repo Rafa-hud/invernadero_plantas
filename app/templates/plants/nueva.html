@@ -1,0 +1,26 @@
+<!-- app/templates/plants/nueva.html -->
+{% extends "base.html" %}
+
+{% block title %}Nueva Planta{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Nueva Planta</h1>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombre" name="nombre" required>
+        </div>
+        <div class="mb-3">
+            <label for="tipo" class="form-label">Tipo</label>
+            <input type="text" class="form-control" id="tipo" name="tipo">
+        </div>
+        <div class="mb-3">
+            <label for="ubicacion" class="form-label">Ubicación</label>
+            <input type="text" class="form-control" id="ubicacion" name="ubicacion">
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar Planta</button>
+        <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

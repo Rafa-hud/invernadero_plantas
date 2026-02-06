@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar Nueva Planta{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-seedling"></i> Agregar Nueva Planta</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('plants.crear_planta') }}">
+                        <!-- Nombre (OBLIGATORIO) -->
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre de la Planta *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                   required placeholder="Ej: Monstera Deliciosa, Rosa, etc.">
+                            <div class="form-text">Nombre común por el que conoces la planta.</div>
+                        </div>
+                        
+                        <!-- Especie (OPCIONAL) -->
+                        <div class="mb-3">
+                            <label for="especie" class="form-label">Especie / Nombre Científico</label>
+                            <input type="text" class="form-control" id="especie" name="especie" 
+                                   placeholder="Ej: Monstera deliciosa, Rosa spp.">
+                            <div class="form-text">Nombre científico de la planta (opcional).</div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Guardar Planta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Info adicional -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle text-info"></i> Información</h6>
+                    <p class="mb-0 small text-muted">
+                        Los campos marcados con * son obligatorios. 
+                        La fecha de registro y estado se asignarán automáticamente.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Incluir FontAwesome para iconos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

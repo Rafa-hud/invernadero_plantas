@@ -1,0 +1,42 @@
+<div class="card card-planta">
+    {% if planta.imagen_url %}
+    <img src="{{ planta.imagen_url }}" class="card-planta-img" alt="{{ planta.nombre }}">
+    {% else %}
+    <div class="card-planta-img bg-light d-flex align-items-center justify-content-center">
+        <i class="fas fa-leaf fa-3x text-success opacity-25"></i>
+    </div>
+    {% endif %}
+    
+    <div class="card-planta-body">
+        {% if planta.categoria %}
+        <div class="mb-2">
+            <span class="badge-categoria">{{ planta.categoria|title }}</span>
+        </div>
+        {% endif %}
+        
+        <h6 class="card-title">{{ planta.nombre }}</h6>
+        
+        {% if planta.especie %}
+        <p class="text-muted small mb-2">
+            <i class="fas fa-seedling"></i> {{ planta.especie }}
+        </p>
+        {% endif %}
+        
+        <div class="mb-2">
+            <span class="precio">${{ "%.2f"|format(planta.precio) }}</span>
+        </div>
+        
+        {% if planta.descripcion %}
+        <p class="card-text small text-muted mb-3">
+            {{ planta.descripcion[:80] }}{% if planta.descripcion|length > 80 %}...{% endif %}
+        </p>
+        {% endif %}
+        
+        <div class="d-grid gap-2">
+            <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
+               class="btn btn-tienda btn-sm">
+                <i class="fas fa-eye"></i> Ver detalles
+            </a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}{{ planta.nombre }} - Detalles{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1"><i class="fas fa-seedling text-success me-2"></i>{{ planta.nombre }}</h1>
+            <p class="text-muted mb-0">
+                <i class="fas fa-hashtag"></i> ID: {{ planta.id }} | 
+                <i class="fas fa-calendar-alt"></i> Registrada: 
+                {% if planta.fecha_registro %}
+                    {{ planta.fecha_registro.strftime('%d/%m/%Y') }}
+                {% else %}
+                    Fecha no disponible
+                {% endif %}
+            </p>
+        </div>
+        <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a la lista
+        </a>
+    </div>
+    
+    <div class="row">
+        <!-- Información Principal -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información de la Planta</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Columna 1 -->
+                        <div class="col-md-6">
+                            <!-- Nombre -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-tag text-success"></i> Nombre</h6>
+                                <p class="ps-3">{{ planta.nombre }}</p>
+                            </div>
+                            
+                            <!-- Especie -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-dna text-success"></i> Especie / Nombre Científico</h6>
+                                <p class="ps-3">
+                                    {% if planta.especie %}
+                                        {{ planta.especie }}
+                                    {% else %}
+                                        <span class="text-muted">No especificada</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Columna 2 -->
+                        <div class="col-md-6">
+                            <!-- Fecha de Registro -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-calendar-alt text-success"></i> Fecha de Registro</h6>
+                                <p class="ps-3">
+                                    {% if planta.fecha_registro %}
+                                        {{ planta.fecha_registro.strftime('%d/%m/%Y a las %H:%M') }}
+                                    {% else %}
+                                        <span class="text-muted">No disponible</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            <!-- Estado -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-circle text-success"></i> Estado</h6>
+                                <p class="ps-3">
+                                    {% if planta.estado == 'activa' %}
+                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                            <i class="fas fa-check-circle"></i> Activa
+                                        </span>
+                                    {% elif planta.estado == 'inactiva' %}
+                                        <span class="badge bg-secondary rounded-pill px-3 py-2">
+                                            <i class="fas fa-times-circle"></i> Inactiva
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-info rounded-pill px-3 py-2">
+                                            {{ planta.estado }}
+                                        </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ID de la planta -->
+                    <div class="alert alert-light mt-3">
+                        <small>
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>ID interno:</strong> {{ planta.id }} | 
+                            <strong>Base de datos:</strong> plantas | 
+                            <strong>Registro creado:</strong> 
+                            {% if planta.fecha_registro %}
+                                hace {{ ((now - planta.fecha_registro).days) }} días
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <!-- Botones en el footer de la tarjeta principal -->
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Editar Planta
+                        </a>
+                        <!-- Botón de riego DESHABILITADO temporalmente -->
+                        <button class="btn btn-secondary" disabled>
+                            <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta.id) }}">
+
+                            <i class="fas fa-tint"></i> Registrar Riego
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel de Acciones -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <!-- Editar -->
+                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                           class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-edit"></i> Editar Información
+                        </a>
+                        
+                        <!-- Registrar Riego DESHABILITADO -->
+                        <button class="btn btn-outline-secondary btn-lg" disabled>
+                            <i class="fas fa-tint"></i> Registrar Riego
+                        </button>
+                        <small class="text-muted text-center">Función en desarrollo</small>
+                        
+                        <!-- Eliminar -->
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-lg" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Eliminar Planta
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estado Resumido -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Resumen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        {% if planta.estado == 'activa' %}
+                        <div class="display-1 text-success mb-3">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h5 class="text-success">Planta Activa</h5>
+                        <p class="text-muted">Esta planta está registrada y activa en el sistema.</p>
+                        {% else %}
+                        <div class="display-1 text-secondary mb-3">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <h5 class="text-secondary">Planta Inactiva</h5>
+                        <p class="text-muted">Esta planta está registrada pero inactiva.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-skull-crossbones"></i> ¡ADVERTENCIA!</h6>
+                    <p class="mb-0">Esta acción es permanente y no se puede deshacer.</p>
+                </div>
+                
+                <p>¿Estás seguro de que quieres eliminar la siguiente planta?</p>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ planta.nombre }}</h6>
+                        <p class="card-text small text-muted mb-1">
+                            <strong>ID:</strong> {{ planta.id }}<br>
+                            <strong>Especie:</strong> {{ planta.especie or 'No especificada' }}<br>
+                            <strong>Estado actual:</strong> 
+                            {% if planta.estado == 'activa' %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ planta.estado }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <form action="{{ url_for('plants.eliminar_planta', id=planta.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Sí, eliminar permanentemente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: 600;
+    }
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+    h6 {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .ps-3 {
+        padding-left: 1.5rem;
+        border-left: 3px solid #28a745;
+        margin-left: 0.5rem;
+    }
+    .display-1 {
+        font-size: 4rem;
+        opacity: 0.8;
+    }
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}

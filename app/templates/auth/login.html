@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Plantas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white text-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-leaf"></i> Sistema de Gestión de Plantas
+                        </h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <h3 class="text-center mb-4">Iniciar Sesión</h3>
+                        
+                        <form method="POST" action="{{ url_for('auth.login') }}">
+                            <div class="mb-3">
+                                <label for="correo" class="form-label">
+                                    <i class="fas fa-envelope"></i> Correo Electrónico
+                                </label>
+                                <input type="email" class="form-control" id="correo" name="correo" 
+                                       required autofocus>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="contrasenia" class="form-label">
+                                    <i class="fas fa-lock"></i> Contraseña
+                                </label>
+                                <input type="password" class="form-control" id="contrasenia" 
+                                       name="contrasenia" required>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-sign-in-alt"></i> Ingresar
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Después del formulario de login -->
+<div class="card-footer text-center py-3">
+    <p class="mb-2">
+        ¿Nuevo cliente? 
+        <a href="{{ url_for('auth.registro_cliente') }}">Regístrate aquí</a>
+    </p>
+    <p class="mb-0 small text-muted">
+        <a href="#">¿Olvidaste tu contraseña?</a>
+    </p>
+</div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="text-center">
+                            <p class="text-muted mb-0">
+                                <small>
+                                    <i class="fas fa-info-circle"></i>
+                                    Usuario demo: admin@plantas.com / Admin123!
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card-footer text-center">
+                        <small class="text-muted">
+                            Sistema de Gestión de Plantas &copy; 2024
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

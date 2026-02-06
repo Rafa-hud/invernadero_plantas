@@ -1,0 +1,44 @@
+{% extends "tienda/base.html" %}
+
+{% block title %}Plantas de {{ categoria|title }} - Tienda{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('tienda.tienda_index') }}">Inicio</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ categoria|title }}</li>
+            </ol>
+        </nav>
+        
+        <h2 class="mb-4">
+            <i class="fas fa-tag text-success"></i> {{ categoria|title }}
+            <span class="badge bg-success">{{ plantas|length }}</span>
+        </h2>
+    </div>
+</div>
+
+{% if plantas %}
+<div class="row">
+    {% for planta in plantas %}
+    <div class="col-md-3 col-sm-6 mb-4">
+        {% include "tienda/_card_planta.html" %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    No hay plantas disponibles en esta categoría en este momento.
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a todas las plantas
+        </a>
+    </div>
+</div>
+{% endblock %}

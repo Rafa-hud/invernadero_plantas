@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Riego - {{ planta.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-tint"></i> Registrar Riego
+                        </h4>
+                        <span class="badge bg-light text-dark">
+                            <i class="fas fa-seedling"></i> {{ planta.nombre }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Información de la planta -->
+                    <div class="alert alert-light mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Planta:</strong> {{ planta.nombre }}</p>
+                                <p class="mb-1"><strong>Especie:</strong> {{ planta.especie or 'No especificada' }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>ID Planta:</strong> {{ planta.id }}</p>
+                                <p class="mb-1"><strong>Estado:</strong> 
+                                    {% if planta.estado == 'activa' %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ planta.estado }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de riego -->
+                    <form method="POST" action="{{ url_for('plants.guardar_riego') }}">
+                        <!-- Campo oculto para id_planta -->
+                        <input type="hidden" name="id_planta" value="{{ planta.id }}">
+                        
+                        <!-- Fecha y Hora del Riego -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="fecha_riego" class="form-label">
+                                    <i class="fas fa-calendar-day"></i> Fecha del Riego *
+                                </label>
+                                <input type="date" class="form-control" id="fecha_riego" 
+                                       name="fecha_riego" required 
+                                       value="{{ today }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hora_riego" class="form-label">
+                                    <i class="fas fa-clock"></i> Hora del Riego *
+                                </label>
+                                <input type="time" class="form-control" id="hora_riego" 
+                                       name="hora_riego" required 
+                                       value="{{ now.strftime('%H:%M') }}">
+                            </div>
+                        </div>
+                        
+                        <!-- Cantidad de Agua -->
+                        <div class="mb-3">
+                            <label for="cantidad_agua" class="form-label">
+                                <i class="fas fa-water"></i> Cantidad de Agua (ml) *
+                            </label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="cantidad_agua" 
+                                       name="cantidad_agua" min="1" max="10000" step="1" required 
+                                       placeholder="Ej: 500" value="500">
+                                <span class="input-group-text">ml</span>
+                            </div>
+                            <div class="form-text">
+                                Cantidad de agua en mililitros (ml). Ej: 500 ml = 0.5 litros
+                            </div>
+                        </div>
+                        
+                        <!-- Tipo de Riego -->
+                        <div class="mb-3">
+                            <label for="tipo_riego" class="form-label">
+                                <i class="fas fa-shower"></i> Tipo de Riego *
+                            </label>
+                            <select class="form-select" id="tipo_riego" name="tipo_riego" required>
+                                <option value="" selected disabled>Selecciona un tipo de riego</option>
+                                <option value="normal">Riego Normal</option>
+                                <option value="abundante">Riego Abundante</option>
+                                <option value="ligero">Riego Ligero</option>
+                                <option value="fertilizado">Riego con Fertilizante</option>
+                                <option value="pulverizado">Pulverizado</option>
+                                <option value="goteo">Riego por Goteo</option>
+                                <option value="manual">Riego Manual</option>
+                                <option value="automatico">Riego Automático</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Notas -->
+                        <div class="mb-4">
+                            <label for="notas" class="form-label">
+                                <i class="fas fa-sticky-note"></i> Notas u Observaciones
+                            </label>
+                            <textarea class="form-control" id="notas" name="notas" 
+                                      rows="3" placeholder="Observaciones sobre el riego, condiciones climáticas, estado de la planta, etc."></textarea>
+                            <div class="form-text">
+                                Puedes añadir detalles importantes sobre este riego (opcional)
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-save"></i> Guardar Riego en Base de Datos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Historial reciente -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history"></i> Últimos Riegos Registrados
+                        <small class="text-muted">(Tabla: registros_riego)</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if riegos_recientes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-hashtag"></i> ID</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha</th>
+                                    <th><i class="fas fa-water"></i> Cantidad</th>
+                                    <th><i class="fas fa-shower"></i> Tipo</th>
+                                    <th><i class="fas fa-sticky-note"></i> Notas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for riego in riegos_recientes %}
+                                <tr>
+                                    <td><small class="text-muted">#{{ riego.id }}</small></td>
+                                    <td>
+                                        <small>
+                                            {{ riego.fecha_riego.strftime('%d/%m/%Y %H:%M') if riego.fecha_riego else 'N/A' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary rounded-pill">
+                                            {{ riego.cantidad_agua }} ml
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ riego.tipo_riego }}</span>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if riego.notas %}
+                                                {{ riego.notas[:30] }}{% if riego.notas|length > 30 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Sin notas</span>
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            Mostrando {{ riegos_recientes|length }} registros de la tabla "registros_riego"
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tint fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No hay riegos registrados</h6>
+                        <p class="text-muted small">
+                            Esta planta aún no tiene registros de riego en la base de datos.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Información sobre la tabla -->
+            <div class="alert alert-secondary mt-3">
+                <h6><i class="fas fa-database"></i> Información de la Base de Datos</h6>
+                <p class="mb-2 small">
+                    <strong>Tabla destino:</strong> <code>registros_riego</code><br>
+                    <strong>Campos a guardar:</strong> id_planta, fecha_riego, cantidad_agua, tipo_riego, notas<br>
+                    <strong>ID generado automáticamente:</strong> Sí (campo: id)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script para establecer fecha y hora actual por defecto -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha y hora actual si no hay valor
+    const fechaInput = document.getElementById('fecha_riego');
+    if (!fechaInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        fechaInput.value = today;
+    }
+    
+    const horaInput = document.getElementById('hora_riego');
+    if (!horaInput.value) {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        horaInput.value = `${hours}:${minutes}`;
+    }
+    
+    // Validar cantidad mínima
+    const cantidadInput = document.getElementById('cantidad_agua');
+    cantidadInput.addEventListener('change', function() {
+        if (this.value < 1) {
+            this.value = 1;
+        }
+        if (this.value > 10000) {
+            this.value = 10000;
+        }
+    });
+});
+</script>
+
+<style>
+    .card {
+        border: none;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: 600;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .alert-light {
+        background-color: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+    }
+    .input-group-text {
+        background-color: #e9ecef;
+        color: #495057;
+        font-weight: 500;
+    }
+    .badge {
+        font-weight: 500;
+    }
+    table th {
+        font-weight: 600;
+        color: #495057;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(23, 162, 184, 0.05);
+    }
+</style>
+
+<!-- Incluir FontAwesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

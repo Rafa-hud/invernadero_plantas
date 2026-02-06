@@ -1,0 +1,423 @@
+{% extends "tienda/base.html" %}
+
+{% block title %}Tienda de Plantas - Inicio{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card border-0" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+            <div class="card-body p-5">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h2 class="display-6 text-success">
+                            <i class="fas fa-seedling"></i> Descubre la Naturaleza en Casa
+                        </h2>
+                        <p class="lead">
+                            Encuentra las plantas perfectas para tu hogar, oficina o jardín. 
+                            Todas nuestras plantas son cuidadas con amor y están listas para alegrar tu espacio.
+                        </p>
+                        <a href="{{ url_for('tienda.buscar_plantas') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-search"></i> Explorar Catálogo
+                        </a>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <i class="fas fa-leaf display-1 text-success opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Carrusel de Misión, Visión, Valores, Objetivos y Metas -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div id="misionVisionCarousel" class="carousel slide" data-bs-ride="carousel">
+            <!-- Indicadores -->
+            <div class="carousel-indicators">
+                <button type="button" data-bs-target="#misionVisionCarousel" data-bs-slide-to="0" class="active"></button>
+                <button type="button" data-bs-target="#misionVisionCarousel" data-bs-slide-to="1"></button>
+                <button type="button" data-bs-target="#misionVisionCarousel" data-bs-slide-to="2"></button>
+                <button type="button" data-bs-target="#misionVisionCarousel" data-bs-slide-to="3"></button>
+                <button type="button" data-bs-target="#misionVisionCarousel" data-bs-slide-to="4"></button>
+            </div>
+            
+            <!-- Slides -->
+            <div class="carousel-inner rounded">
+                <!-- Misión -->
+                <div class="carousel-item active">
+                    <div class="carousel-item-content bg-success text-white p-5">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-bullseye fa-4x mb-3"></i>
+                            </div>
+                            <div class="col-md-10">
+                                <h3 class="display-6 mb-3">Nuestra Misión</h3>
+                                <p class="lead">
+                                    Conectar a las personas con la naturaleza a través de plantas de calidad, 
+                                    promoviendo un estilo de vida más verde y saludable en cada hogar y espacio 
+                                    de trabajo. Buscamos ser el puente entre la belleza natural y tu vida diaria.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visión -->
+                <div class="carousel-item">
+                    <div class="carousel-item-content bg-info text-white p-5">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-eye fa-4x mb-3"></i>
+                            </div>
+                            <div class="col-md-10">
+                                <h3 class="display-6 mb-3">Nuestra Visión</h3>
+                                <p class="lead">
+                                    Ser la tienda de plantas líder en la región, reconocida por nuestra calidad, 
+                                    variedad y compromiso con la sostenibilidad. Aspiramos a crear una comunidad 
+                                    de amantes de las plantas que transforme espacios y mejore la calidad de vida.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Valores -->
+                <div class="carousel-item">
+                    <div class="carousel-item-content bg-warning text-dark p-5">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-heart fa-4x mb-3"></i>
+                            </div>
+                            <div class="col-md-10">
+                                <h3 class="display-6 mb-3">Nuestros Valores</h3>
+                                <ul class="lead mb-0">
+                                    <li><strong>Sostenibilidad:</strong> Promovemos prácticas ecológicas y responsables</li>
+                                    <li><strong>Calidad:</strong> Ofrecemos solo plantas saludables y bien cuidadas</li>
+                                    <li><strong>Pasión:</strong> Amamos lo que hacemos y compartimos ese amor</li>
+                                    <li><strong>Integridad:</strong> Transparencia y honestidad en cada proceso</li>
+                                    <li><strong>Innovación:</strong> Siempre buscamos mejorar y crecer</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Objetivos -->
+                <div class="carousel-item">
+                    <div class="carousel-item-content bg-primary text-white p-5">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-flag fa-4x mb-3"></i>
+                            </div>
+                            <div class="col-md-10">
+                                <h3 class="display-6 mb-3">Nuestros Objetivos</h3>
+                                <ol class="lead mb-0">
+                                    <li>Expandir nuestra variedad de plantas a más de 500 especies</li>
+                                    <li>Establecer programas de educación sobre cuidado de plantas</li>
+                                    <li>Implementar prácticas 100% sostenibles en nuestros procesos</li>
+                                    <li>Crear una comunidad activa de más de 10,000 amantes de plantas</li>
+                                    <li>Reducir nuestra huella de carbono en un 30% para 2025</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Metas -->
+                <div class="carousel-item">
+                    <div class="carousel-item-content bg-dark text-white p-5">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-chart-line fa-4x mb-3"></i>
+                            </div>
+                            <div class="col-md-10">
+                                <h3 class="display-6 mb-3">Nuestras Metas</h3>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-transparent border-light mb-3">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Corto Plazo</h5>
+                                                <ul class="mb-0">
+                                                    <li>Ampliar catálogo en un 25%</li>
+                                                    <li>Lanzar blog educativo</li>
+                                                    <li>Implementar programa de fidelización</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-transparent border-light mb-3">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Largo Plazo</h5>
+                                                <ul class="mb-0">
+                                                    <li>Abrir 3 nuevas sucursales</li>
+                                                    <li>Crear vivero propio</li>
+                                                    <li>Exportar a países vecinos</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controles -->
+            <button class="carousel-control-prev" type="button" data-bs-target="#misionVisionCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#misionVisionCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Siguiente</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros de categorías -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-3">
+            <i class="fas fa-filter text-success"></i> Categorías
+        </h4>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('tienda.tienda_index') }}" 
+               class="btn btn-outline-success {% if not request.args.get('categoria') %}active{% endif %}">
+                Todas
+            </a>
+            {% for categoria in categorias %}
+            <a href="{{ url_for('tienda.plantas_por_categoria', categoria=categoria) }}" 
+               class="btn btn-outline-success">
+                {{ categoria|title }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Lista de plantas -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4>
+                <i class="fas fa-store text-success"></i> Plantas Disponibles
+                <span class="badge bg-success">{{ plantas|length }}</span>
+            </h4>
+            <div class="dropdown">
+                <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-sort"></i> Ordenar
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="?orden=nombre">Por nombre</a></li>
+                    <li><a class="dropdown-item" href="?orden=precio_asc">Precio: menor a mayor</a></li>
+                    <li><a class="dropdown-item" href="?orden=precio_desc">Precio: mayor a menor</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    {% if plantas %}
+        {% for planta in plantas %}
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card card-planta {% if planta.stock < 5 %}planta-destacada{% endif %}">
+                <!-- Imagen de la planta -->
+                {% if planta.imagen_url %}
+                <img src="{{ planta.imagen_url }}" class="card-planta-img" alt="{{ planta.nombre }}">
+                {% else %}
+                <div class="card-planta-img bg-light d-flex align-items-center justify-content-center">
+                    <i class="fas fa-leaf fa-5x text-success opacity-25"></i>
+                </div>
+                {% endif %}
+                
+                <div class="card-planta-body">
+                    <!-- Categoría -->
+                    {% if planta.categoria %}
+                    <div class="mb-2">
+                        <span class="badge-categoria">{{ planta.categoria|title }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Nombre y especie -->
+                    <h5 class="card-title">{{ planta.nombre }}</h5>
+                    {% if planta.especie %}
+                    <p class="text-muted small mb-2">
+                        <i class="fas fa-seedling"></i> {{ planta.especie }}
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Precio -->
+                    <div class="mb-2">
+                        <span class="precio">${{ "%.2f"|format(planta.precio) }}</span>
+                    </div>
+                    
+                    <!-- Descripción breve -->
+                    {% if planta.descripcion %}
+                    <p class="card-text small text-muted mb-3">
+                        {{ planta.descripcion[:100] }}{% if planta.descripcion|length > 100 %}...{% endif %}
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Stock -->
+                    <div class="mb-3">
+                        {% if planta.stock > 10 %}
+                        <span class="badge bg-success">Disponible</span>
+                        {% elif planta.stock > 0 %}
+                        <span class="badge bg-warning">Últimas unidades</span>
+                        {% else %}
+                        <span class="badge bg-danger">Agotado</span>
+                        {% endif %}
+                        <small class="text-muted ms-2">{{ planta.stock }} en stock</small>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
+                           class="btn btn-tienda btn-sm">
+                            <i class="fas fa-eye"></i> Ver detalles
+                        </a>
+                        {% if planta.stock > 0 %}
+                        <button class="btn btn-outline-success btn-sm agregar-carrito" 
+                                data-planta-id="{{ planta.id }}"
+                                data-planta-nombre="{{ planta.nombre }}">
+                            <i class="fas fa-cart-plus"></i> Añadir al carrito
+                        </button>
+                        {% else %}
+                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                            <i class="fas fa-times"></i> Agotado
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info text-center py-5">
+            <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
+            <h4>No hay plantas disponibles en este momento</h4>
+            <p>Pronto tendremos nuevas plantas en stock.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Carrito flotante -->
+<div class="carrito-flotante">
+    <button class="btn btn-success btn-lg rounded-circle" data-bs-toggle="modal" data-bs-target="#carritoModal">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            0
+        </span>
+    </button>
+</div>
+
+<!-- Modal del carrito -->
+<div class="modal fade" id="carritoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-shopping-cart"></i> Tu Carrito
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="carrito-vacio" class="text-center py-5">
+                    <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
+                    <h5>Tu carrito está vacío</h5>
+                    <p class="text-muted">Agrega algunas plantas para comenzar</p>
+                </div>
+                <div id="carrito-contenido" style="display: none;">
+                    <!-- Aquí se cargarán los items del carrito -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Seguir comprando</button>
+                <a href="{{ url_for('tienda.ver_carrito') }}" class="btn btn-success">Ver carrito completo</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Agregar al carrito
+    $('.agregar-carrito').click(function() {
+        const plantaId = $(this).data('planta-id');
+        const plantaNombre = $(this).data('planta-nombre');
+        
+        // Mostrar alerta de confirmación
+        Swal.fire({
+            icon: 'success',
+            title: '¡Agregado al carrito!',
+            text: plantaNombre + ' ha sido agregada a tu carrito',
+            timer: 1500,
+            showConfirmButton: false
+        });
+        
+        // Actualizar contador del carrito
+        const badge = $('.carrito-flotante .badge');
+        let count = parseInt(badge.text()) || 0;
+        badge.text(count + 1);
+        
+        // Aquí en una implementación real harías una llamada AJAX para guardar en el carrito
+        // fetch('/tienda/agregar-carrito', {
+        //     method: 'POST',
+        //     headers: {'Content-Type': 'application/json'},
+        //     body: JSON.stringify({planta_id: plantaId, cantidad: 1})
+        // });
+    });
+    
+    // Inicializar SweetAlert si no está cargado
+    if (typeof Swal === 'undefined') {
+        const swalScript = document.createElement('script');
+        swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        document.head.appendChild(swalScript);
+    }
+});
+</script>
+
+<style>
+/* Estilos adicionales para el carrusel */
+.carousel-item-content {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.carousel-indicators button {
+    background-color: #198754;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin: 0 5px;
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: rgba(25, 135, 84, 0.8);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    background-size: 60% 60%;
+}
+
+.carousel-item ul, .carousel-item ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.carousel-item li {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

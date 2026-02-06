@@ -1,0 +1,570 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Plantas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">
+        <i class="fas fa-seedling text-success"></i> Mis Plantas
+    </h1>
+    
+    <!-- Botones principales -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{{ url_for('plants.crear_planta') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Agregar Nueva Planta
+        </a>
+        
+        <!-- Botón para ir a la tienda (solo para admin) -->
+        {% if current_user.rol == 'admin' %}
+        <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-info">
+            <i class="fas fa-store"></i> Ver Tienda
+        </a>
+        {% endif %}
+    </div>
+    
+    {% if plantas %}
+    <div class="row">
+        {% for planta in plantas %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <!-- Indicador si está en tienda -->
+                    {% if planta.disponible_venta %}
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <span class="badge bg-info rounded-pill" title="Disponible en tienda">
+                            <i class="fas fa-store"></i> Tienda
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="card-title text-success">
+                        <i class="fas fa-leaf"></i> {{ planta.nombre }}
+                    </h5>
+                    
+                    <div class="card-text">
+                        <div class="mb-2">
+                            <strong><i class="fas fa-dna text-success"></i> Especie:</strong> 
+                            <span class="ms-1">
+                                {{ planta.especie or 'No especificada' }}
+                            </span>
+                        </div>
+                        
+                        <!-- Precio si está en tienda -->
+                        {% if planta.disponible_venta and planta.precio %}
+                        <div class="mb-2">
+                            <strong><i class="fas fa-tag text-success"></i> Precio:</strong> 
+                            <span class="ms-1 text-success fw-bold">
+                                ${{ "%.2f"|format(planta.precio) }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Categoría si está en tienda -->
+                        {% if planta.disponible_venta and planta.categoria %}
+                        <div class="mb-2">
+                            <strong><i class="fas fa-tags text-success"></i> Categoría:</strong> 
+                            <span class="ms-1 badge bg-success">
+                                {{ planta.categoria|title }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-2">
+                            <strong><i class="fas fa-calendar-alt text-success"></i> Registro:</strong> 
+                            <span class="ms-1">
+                                {% if planta.fecha_registro %}
+                                    {{ planta.fecha_registro.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    No disponible
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong><i class="fas fa-circle text-success"></i> Estado:</strong> 
+                            <span class="ms-1">
+                                {% if planta.estado == 'activa' %}
+                                    <span class="badge bg-success rounded-pill">Activa</span>
+                                {% elif planta.estado == 'inactiva' %}
+                                    <span class="badge bg-secondary rounded-pill">Inactiva</span>
+                                {% else %}
+                                    <span class="badge bg-info rounded-pill">{{ planta.estado }}</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- Stock si está en tienda -->
+                        {% if planta.disponible_venta %}
+                        <div class="mb-3">
+                            <strong><i class="fas fa-box text-success"></i> Stock:</strong> 
+                            <span class="ms-1">
+                                {% if planta.stock > 0 %}
+                                    <span class="badge bg-success rounded-pill">{{ planta.stock }} unidades</span>
+                                {% else %}
+                                    <span class="badge bg-danger rounded-pill">Agotado</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0 pt-0">
+                    <div class="btn-group w-100 mb-2" role="group">
+                        <!-- Botón Ver Detalles -->
+                        <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" 
+                           class="btn btn-sm btn-outline-primary rounded-start" 
+                           title="Ver detalles">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        
+                        <!-- Botón Editar -->
+                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                           class="btn btn-sm btn-outline-secondary" 
+                           title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        
+                        <!-- Botón Registrar Riego -->
+                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta.id) }}"
+                           class="btn btn-sm btn-outline-success" 
+                           title="Registrar riego">
+                            <i class="fas fa-tint"></i>
+                        </a>
+                        
+                        <!-- Botón Eliminar con confirmación -->
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger rounded-end" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteModal{{ planta.id }}"
+                                title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Botón para gestionar en tienda -->
+                    <div class="d-grid">
+                        {% if not planta.disponible_venta %}
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-info" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#addToStoreModal{{ planta.id }}">
+                            <i class="fas fa-store"></i> Agregar a Tienda
+                        </button>
+                        {% else %}
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-warning" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#manageStoreModal{{ planta.id }}">
+                            <i class="fas fa-cog"></i> Gestionar en Tienda
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para agregar a tienda -->
+        <div class="modal fade" id="addToStoreModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-store"></i> Agregar a Tienda
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addToStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.agregar_a_tienda', id=planta.id) }}">
+                            <input type="hidden" name="planta_id" value="{{ planta.id }}">
+                            
+                            <div class="mb-3">
+                                <label for="precio{{ planta.id }}" class="form-label">
+                                    <i class="fas fa-tag"></i> Precio *
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="precio{{ planta.id }}" 
+                                           name="precio" min="0" step="0.01" required 
+                                           placeholder="Ej: 19.99">
+                                </div>
+                                <small class="text-muted">Precio en dólares</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="descripcion{{ planta.id }}" class="form-label">
+                                    <i class="fas fa-align-left"></i> Descripción para tienda
+                                </label>
+                                <textarea class="form-control" id="descripcion{{ planta.id }}" 
+                                          name="descripcion" rows="3" 
+                                          placeholder="Describe la planta para los clientes..."></textarea>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="stock{{ planta.id }}" class="form-label">
+                                        <i class="fas fa-box"></i> Stock *
+                                    </label>
+                                    <input type="number" class="form-control" id="stock{{ planta.id }}" 
+                                           name="stock" min="1" required 
+                                           value="10">
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="categoria{{ planta.id }}" class="form-label">
+                                        <i class="fas fa-tags"></i> Categoría *
+                                    </label>
+                                    <select class="form-select" id="categoria{{ planta.id }}" name="categoria" required>
+                                        <option value="">Seleccionar categoría</option>
+                                        <option value="interior">Interior</option>
+                                        <option value="exterior">Exterior</option>
+                                        <option value="suculenta">Suculenta</option>
+                                        <option value="aromática">Aromática</option>
+                                        <option value="frutal">Frutal</option>
+                                        <option value="ornamental">Ornamental</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <small>
+                                    <i class="fas fa-info-circle"></i>
+                                    Esta planta será visible en la tienda online para clientes.
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="submit" form="addToStoreForm{{ planta.id }}" class="btn btn-info">
+                            <i class="fas fa-check"></i> Agregar a Tienda
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para gestionar en tienda -->
+        <div class="modal fade" id="manageStoreModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-cog"></i> Gestionar en Tienda
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="manageStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.actualizar_tienda', id=planta.id) }}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Estado en Tienda</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="disponible_venta" 
+                                               id="activa{{ planta.id }}" value="true" {% if planta.disponible_venta %}checked{% endif %}>
+                                        <label class="form-check-label" for="activa{{ planta.id }}">
+                                            <span class="badge bg-success">Disponible</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="disponible_venta" 
+                                               id="inactiva{{ planta.id }}" value="false" {% if not planta.disponible_venta %}checked{% endif %}>
+                                        <label class="form-check-label" for="inactiva{{ planta.id }}">
+                                            <span class="badge bg-secondary">No disponible</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="stock_actual{{ planta.id }}" class="form-label">
+                                        <i class="fas fa-box"></i> Stock Actual
+                                    </label>
+                                    <input type="number" class="form-control" id="stock_actual{{ planta.id }}" 
+                                           name="stock" value="{{ planta.stock or 0 }}" min="0">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="precio_actual{{ planta.id }}" class="form-label">
+                                    <i class="fas fa-tag"></i> Precio Actual
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="precio_actual{{ planta.id }}" 
+                                           name="precio" value="{{ planta.precio or 0 }}" step="0.01">
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
+                               class="btn btn-outline-primary" target="_blank">
+                                <i class="fas fa-external-link-alt"></i> Ver en tienda
+                            </a>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
+                        <button type="submit" form="manageStoreForm{{ planta.id }}" class="btn btn-warning">
+                            <i class="fas fa-save"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de confirmación para eliminar -->
+        <div class="modal fade" id="deleteModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>¡Advertencia!</strong> Esta acción no se puede deshacer.
+                        </div>
+                        <p class="mb-0">¿Estás seguro de que quieres eliminar la planta <strong>"{{ planta.nombre }}"</strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </button>
+                        <form action="{{ url_for('plants.eliminar_planta', id=planta.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> Sí, eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info border-0 shadow-sm">
+        <div class="d-flex align-items-center">
+            <div class="flex-shrink-0">
+                <i class="fas fa-seedling fa-3x text-info"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+                <h5 class="alert-heading mb-2">¡Comienza tu jardín digital!</h5>
+                <p class="mb-3">No tienes plantas registradas todavía. Agrega tu primera planta para empezar a gestionar tu jardín.</p>
+                <a href="{{ url_for('plants.crear_planta') }}" class="btn btn-info">
+                    <i class="fas fa-plus me-1"></i> Agregar primera planta
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Incluir FontAwesome para los iconos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<!-- Incluir Bootstrap JS para los modales -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Incluir SweetAlert2 para notificaciones -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    .card {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 10px 25px rgba(40, 167, 69, 0.15);
+        border-color: #28a745;
+    }
+    .card-title {
+        font-weight: 600;
+        color: #198754;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    .btn-group {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn-group .btn {
+        flex: 1;
+        border: none;
+        padding: 0.5rem 0;
+        transition: all 0.2s;
+    }
+    .btn-group .btn:hover {
+        transform: scale(1.05);
+    }
+    .btn-group .btn:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+    .btn-group .btn:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+    .badge {
+        font-weight: 500;
+        padding: 0.4em 1em;
+    }
+    .modal-content {
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .alert-info {
+        background-color: #e8f4fc;
+        border-left: 4px solid #17a2b8;
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+    }
+    .btn-success:hover {
+        background: linear-gradient(135deg, #218838, #1ba87e);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    .position-absolute {
+        z-index: 10;
+    }
+    .store-badge {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Hacer las tarjetas más interactivas
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.zIndex = '100';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.zIndex = '1';
+        });
+    });
+    
+    // Manejar el envío de formularios de tienda
+    const addToStoreForms = document.querySelectorAll('[id^="addToStoreForm"]');
+    addToStoreForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const plantaId = formData.get('planta_id');
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addToStoreModal' + plantaId));
+                    modal.hide();
+                    
+                    // Mostrar notificación
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Recargar la página después de 2 segundos
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Ocurrió un error al agregar a la tienda'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'No se pudo conectar con el servidor'
+                });
+            });
+        });
+    });
+    
+    // Manejar el envío de formularios de gestión
+    const manageStoreForms = document.querySelectorAll('[id^="manageStoreForm"]');
+    manageStoreForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const plantaId = this.id.replace('manageStoreForm', '');
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('manageStoreModal' + plantaId));
+                    modal.hide();
+                    
+                    // Mostrar notificación
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Actualizado!',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Recargar la página después de 2 segundos
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Ocurrió un error al actualizar'
+                    });
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

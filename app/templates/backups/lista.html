@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Respaldos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-database text-primary"></i> Gestión de Respaldos
+                    </h1>
+                    <p class="text-muted">Administra los respaldos de la base de datos del sistema.</p>
+                </div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de acciones -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools text-primary"></i> Acciones de Respaldo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Crear respaldo completo -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-primary h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-save fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">Respaldo Completo</h5>
+                                    <p class="card-text small text-muted">
+                                        Crea un respaldo completo de toda la base de datos.
+                                        Incluye todas las tablas y datos.
+                                    </p>
+                                </div>
+                                <div class="card-footer bg-white border-0">
+                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
+                                        <input type="hidden" name="tipo" value="completo">
+                                        <input type="hidden" name="almacenamiento" value="local">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Completo
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Crear respaldo diferencial -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-info h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-exchange-alt fa-3x text-info mb-3"></i>
+                                    <h5 class="card-title">Respaldo Diferencial</h5>
+                                    <p class="card-text small text-muted">
+                                        Respalda solo los cambios desde el último respaldo completo.
+                                        Más rápido que un respaldo completo.
+                                    </p>
+                                </div>
+                                <div class="card-footer bg-white border-0">
+                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
+                                        <input type="hidden" name="tipo" value="diferencial">
+                                        <input type="hidden" name="almacenamiento" value="local">
+                                        <button type="submit" class="btn btn-info w-100">
+                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Diferencial
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Crear respaldo mínima modificación -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-success h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-export fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Respaldo Mínima</h5>
+                                    <p class="card-text small text-muted">
+                                        Respalda solo los cambios más recientes.
+                                        Ideal para respaldos frecuentes.
+                                    </p>
+                                </div>
+                                <div class="card-footer bg-white border-0">
+                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
+                                        <input type="hidden" name="tipo" value="minima_modificacion">
+                                        <input type="hidden" name="almacenamiento" value="local">
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Mínima
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de respaldos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history text-primary"></i> Historial de Respaldos
+                    </h5>
+                    <span class="badge bg-primary">
+                        {{ respaldos|length }} respaldos
+                    </span>
+                </div>
+                <div class="card-body">
+                    {% if respaldos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-hashtag"></i> ID</th>
+                                    <th><i class="fas fa-file"></i> Tipo</th>
+                                    <th><i class="fas fa-calendar"></i> Fecha</th>
+                                    <th><i class="fas fa-user"></i> Realizado por</th>
+                                    <th><i class="fas fa-hdd"></i> Archivo / Tamaño</th>
+                                    <th><i class="fas fa-box"></i> Almacenamiento</th>
+                                    <th><i class="fas fa-cogs"></i> Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for respaldo in respaldos %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">#{{ respaldo.id }}</span>
+                                    </td>
+                                    <td>
+                                        {% if respaldo.tipo_respaldo == 'completo' %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-database"></i> Completo
+                                        </span>
+                                        {% elif respaldo.tipo_respaldo == 'diferencial' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-exchange-alt"></i> Diferencial
+                                        </span>
+                                        {% elif respaldo.tipo_respaldo == 'minima_modificacion' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-file-export"></i> Mínima
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ respaldo.tipo_respaldo }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ respaldo.fecha_respaldo.strftime('%d/%m/%Y') }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ respaldo.fecha_respaldo.strftime('%H:%M:%S') }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ respaldo.realizado_por or 'Sistema' }}</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-monospace">
+                                            <i class="fas fa-file-code"></i> 
+                                            {{ respaldo.ruta_archivo.split('/')[-1] if respaldo.ruta_archivo else 'N/A' }}
+                                            <br>
+                                            <span class="badge bg-secondary">
+                                                {% if respaldo.tamaño_mb %}
+                                                    {{ "%.2f"|format(respaldo.tamaño_mb) }} MB
+                                                {% else %}
+                                                    N/A MB
+                                                {% endif %}
+                                            </span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if respaldo.almacenamiento == 'local' %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-server"></i> Local
+                                        </span>
+                                        {% elif respaldo.almacenamiento == 'google_drive' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fab fa-google-drive"></i> Google Drive
+                                        </span>
+                                        {% elif respaldo.almacenamiento == 'usb' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-usb"></i> USB
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ respaldo.almacenamiento or 'Local' }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <!-- Verificar integridad -->
+                                            <button type="button" 
+                                                    class="btn btn-outline-success verificar-respaldo" 
+                                                    data-id="{{ respaldo.id }}"
+                                                    title="Verificar integridad">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                            
+                                            <!-- Descargar -->
+                                            <a href="{{ url_for('backup.descargar_respaldo', id=respaldo.id) }}" 
+                                               class="btn btn-outline-primary" 
+                                               title="Descargar">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            
+                                            <!-- Restaurar -->
+                                            <button type="button" 
+                                                    class="btn btn-outline-warning" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#restoreModal{{ respaldo.id }}"
+                                                    title="Restaurar">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            
+                                            <!-- Eliminar -->
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal{{ respaldo.id }}"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+
+                                        <!-- Modal Restaurar -->
+                                        <div class="modal fade" id="restoreModal{{ respaldo.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-warning text-white">
+                                                        <h5 class="modal-title">
+                                                            <i class="fas fa-exclamation-triangle"></i> Restaurar Respaldo
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="alert alert-warning">
+                                                            <strong>¡ADVERTENCIA CRÍTICA!</strong><br>
+                                                            Esta acción restaurará la base de datos a partir del respaldo seleccionado.
+                                                            <strong>Todos los datos actuales se perderán permanentemente.</strong>
+                                                        </div>
+                                                        <p>¿Estás seguro de restaurar el respaldo <strong>#{{ respaldo.id }}</strong>?</p>
+                                                        <div class="card">
+                                                            <div class="card-body">
+                                                                <p class="mb-1"><strong>Tipo:</strong> 
+                                                                    {% if respaldo.tipo_respaldo == 'completo' %}
+                                                                        <span class="badge bg-primary">Completo</span>
+                                                                    {% elif respaldo.tipo_respaldo == 'diferencial' %}
+                                                                        <span class="badge bg-info">Diferencial</span>
+                                                                    {% elif respaldo.tipo_respaldo == 'minima_modificacion' %}
+                                                                        <span class="badge bg-success">Mínima Modificación</span>
+                                                                    {% endif %}
+                                                                </p>
+                                                                <p class="mb-1"><strong>Fecha:</strong> {{ respaldo.fecha_respaldo.strftime('%d/%m/%Y %H:%M:%S') }}</p>
+                                                                <p class="mb-1"><strong>Tamaño:</strong> 
+                                                                    {% if respaldo.tamaño_mb %}
+                                                                        {{ "%.2f"|format(respaldo.tamaño_mb) }} MB
+                                                                    {% else %}
+                                                                        N/A
+                                                                    {% endif %}
+                                                                </p>
+                                                                <p class="mb-0"><strong>Archivo:</strong> <code>{{ respaldo.ruta_archivo }}</code></p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            <i class="fas fa-times"></i> Cancelar
+                                                        </button>
+                                                        <form method="POST" action="{{ url_for('backup.restaurar_respaldo', id=respaldo.id) }}">
+                                                            <button type="submit" class="btn btn-warning">
+                                                                <i class="fas fa-undo"></i> Sí, restaurar base de datos
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Modal Eliminar -->
+                                        <div class="modal fade" id="deleteModal{{ respaldo.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h5 class="modal-title">
+                                                            <i class="fas fa-trash"></i> Eliminar Respaldo
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>¿Estás seguro de eliminar el respaldo <strong>#{{ respaldo.id }}</strong>?</p>
+                                                        <div class="alert alert-danger">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            Esta acción no se puede deshacer. El archivo de respaldo se eliminará permanentemente del servidor.
+                                                        </div>
+                                                        <div class="card">
+                                                            <div class="card-body">
+                                                                <p class="mb-1"><strong>Tipo:</strong> {{ respaldo.tipo_respaldo|title }}</p>
+                                                                <p class="mb-1"><strong>Fecha:</strong> {{ respaldo.fecha_respaldo.strftime('%d/%m/%Y %H:%M') }}</p>
+                                                                <p class="mb-0"><strong>Archivo:</strong> {{ respaldo.ruta_archivo }}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            <i class="fas fa-times"></i> Cancelar
+                                                        </button>
+                                                        <form method="POST" action="{{ url_for('backup.eliminar_respaldo', id=respaldo.id) }}">
+                                                            <button type="submit" class="btn btn-danger">
+                                                                <i class="fas fa-trash"></i> Sí, eliminar permanentemente
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Estadísticas -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-chart-pie text-info"></i> Estadísticas de Respaldos</h6>
+                                    <div class="row mt-3">
+                                        <div class="col-6">
+                                            <small class="text-muted">Completos</small>
+                                            <h5 class="text-primary">
+                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'completo')|list|length }}
+                                            </h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Diferenciales</small>
+                                            <h5 class="text-info">
+                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'diferencial')|list|length }}
+                                            </h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Mínima</small>
+                                            <h5 class="text-success">
+                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'minima_modificacion')|list|length }}
+                                            </h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Total MB</small>
+                                            <h5 class="text-warning">
+                                                {{ "%.2f"|format(respaldos|sum(attribute='tamaño_mb') or 0) }}
+                                            </h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card border-success">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-info-circle text-success"></i> Información del Sistema</h6>
+                                    <ul class="list-unstyled mt-3">
+                                        <li class="mb-2">
+                                            <i class="fas fa-folder text-success me-2"></i>
+                                            <strong>Carpeta respaldos:</strong> <code>backups/</code>
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-database text-success me-2"></i>
+                                            <strong>Base de datos:</strong> {{ config['MYSQL_DB'] if config else 'gestion_plantas' }}
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-shield-alt text-success me-2"></i>
+                                            <strong>Integridad:</strong> Checksum SHA-256
+                                        </li>
+                                        <li>
+                                            <i class="fas fa-compress text-success me-2"></i>
+                                            <strong>Compresión:</strong> GZIP automática
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="mb-4">
+                            <i class="fas fa-database fa-4x text-muted opacity-25"></i>
+                        </div>
+                        <h5 class="text-muted mb-3">No hay respaldos registrados</h5>
+                        <p class="text-muted mb-4">Crea tu primer respaldo para proteger los datos del sistema.</p>
+                        <form method="POST" action="{{ url_for('backup.crear_respaldo') }}" class="d-inline">
+                            <input type="hidden" name="tipo" value="completo">
+                            <input type="hidden" name="almacenamiento" value="local">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus me-2"></i> Crear primer respaldo
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para importar respaldo -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-import"></i> Importar Respaldo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong><i class="fas fa-info-circle"></i> Información:</strong><br>
+                    Esta función permite restaurar la base de datos desde un archivo SQL.
+                    El archivo debe ser un volcado de MySQL válido (formato .sql o .sql.gz).
+                </div>
+                <form method="POST" action="{{ url_for('backup.importar_respaldo') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="archivo_respaldo" class="form-label">Seleccionar archivo SQL</label>
+                        <input type="file" class="form-control" id="archivo_respaldo" name="archivo_respaldo" accept=".sql,.gz" required>
+                        <div class="form-text">Formatos soportados: .sql, .sql.gz (hasta 50MB)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="almacenamiento" class="form-label">Tipo de almacenamiento</label>
+                        <select class="form-select" id="almacenamiento" name="almacenamiento" required>
+                            <option value="local">Local (servidor)</option>
+                            <option value="google_drive">Google Drive</option>
+                            <option value="usb">USB/Disco externo</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong><i class="fas fa-exclamation-triangle"></i> ¡Precaución!</strong><br>
+                        La importación reemplazará toda la base de datos actual.
+                        Asegúrate de tener un respaldo reciente antes de continuar.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-upload"></i> Importar Respaldo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estilos adicionales -->
+<style>
+    .card {
+        border-radius: 10px;
+        transition: transform 0.2s;
+        margin-bottom: 1rem;
+    }
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .btn-group .btn {
+        border-radius: 4px;
+        margin: 1px;
+    }
+    .badge {
+        font-weight: 500;
+        padding: 0.4em 0.8em;
+    }
+    .table th {
+        font-weight: 600;
+        color: #495057;
+        border-top: none;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    .modal-header {
+        border-radius: 10px 10px 0 0;
+    }
+    .text-monospace {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.85em;
+    }
+    .list-unstyled li {
+        padding: 0.25rem 0;
+    }
+</style>
+
+<!-- Scripts -->
+<script>
+// Verificar integridad de respaldo
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar integridad
+    document.querySelectorAll('.verificar-respaldo').forEach(button => {
+        button.addEventListener('click', function() {
+            const respaldoId = this.getAttribute('data-id');
+            const button = this;
+            
+            // Mostrar loading
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+            
+            fetch(`/backup/verificar/${respaldoId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.estado === 'ok') {
+                        if (data.integridad) {
+                            // Mostrar SweetAlert2 de éxito
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: '✅ Integridad Verificada',
+                                    html: `
+                                        <div class="text-start">
+                                            <p><strong>ID:</strong> #${data.id}</p>
+                                            <p><strong>Archivo:</strong> <code>${data.archivo.split('/').pop()}</code></p>
+                                            <p><strong>Tamaño:</strong> ${data.tamano_mb ? data.tamano_mb.toFixed(2) + ' MB' : 'N/A'}</p>
+                                            <p><strong>Checksum:</strong> <span class="text-success">✔ Coincide</span></p>
+                                            <p><strong>Fecha creación:</strong> ${data.fecha_creacion}</p>
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'OK',
+                                    confirmButtonColor: '#198754'
+                                });
+                            } else {
+                                alert('✅ Integridad verificada correctamente');
+                            }
+                        } else {
+                            // Mostrar SweetAlert2 de advertencia
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '⚠️ Advertencia',
+                                    html: `
+                                        <div class="text-start">
+                                            <p><strong>ID:</strong> #${data.id}</p>
+                                            <p><strong>Archivo:</strong> <code>${data.archivo.split('/').pop()}</code></p>
+                                            <p><strong>Checksum original:</strong> <small>${data.checksum_original ? data.checksum_original.substring(0, 16) + '...' : 'N/A'}</small></p>
+                                            <p><strong>Checksum actual:</strong> <small>${data.checksum_actual ? data.checksum_actual.substring(0, 16) + '...' : 'N/A'}</small></p>
+                                            <p class="text-danger mt-2"><strong>✗ NO COINCIDEN</strong></p>
+                                            <p class="text-muted small mt-2">El archivo puede estar corrupto o haber sido modificado.</p>
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'Entendido',
+                                    confirmButtonColor: '#fd7e14'
+                                });
+                            } else {
+                                alert('⚠️ Advertencia: El checksum no coincide');
+                            }
+                        }
+                    } else {
+                        // Mostrar SweetAlert2 de error
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: '❌ Error',
+                                text: data.mensaje || 'Error al verificar el respaldo',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#dc3545'
+                            });
+                        } else {
+                            alert('❌ Error: ' + (data.mensaje || 'Error al verificar el respaldo'));
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Mostrar SweetAlert2 de error de conexión
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: '❌ Error de conexión',
+                            text: 'No se pudo conectar con el servidor para verificar el respaldo',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#dc3545'
+                        });
+                    } else {
+                        alert('❌ Error de conexión: No se pudo verificar el respaldo');
+                    }
+                })
+                .finally(() => {
+                    // Restaurar botón
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                });
+        });
+    });
+
+    // Confirmar eliminación de respaldo
+    document.querySelectorAll('form[action*="eliminar"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const button = this.querySelector('button[type="submit"]');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+            button.disabled = true;
+            // No prevenir el envío, solo mostrar loading
+        });
+    });
+
+    // Confirmar restauración de respaldo
+    document.querySelectorAll('form[action*="restaurar"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const button = this.querySelector('button[type="submit"]');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restaurando...';
+            button.disabled = true;
+            // No prevenir el envío, solo mostrar loading
+        });
+    });
+});
+</script>
+
+<!-- Incluir SweetAlert2 (si no está incluido en base.html) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Incluir FontAwesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

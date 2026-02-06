@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ planta.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-edit"></i> Editar Planta: {{ planta.nombre }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Nombre -->
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">
+                                <i class="fas fa-leaf"></i> Nombre de la Planta *
+                            </label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                   value="{{ planta.nombre }}" required
+                                   placeholder="Nombre de la planta">
+                            <div class="form-text">Nombre común por el que conoces la planta.</div>
+                        </div>
+                        
+                        <!-- Especie -->
+                        <div class="mb-3">
+                            <label for="especie" class="form-label">
+                                <i class="fas fa-dna"></i> Especie / Nombre Científico
+                            </label>
+                            <input type="text" class="form-control" id="especie" name="especie" 
+                                   value="{{ planta.especie or '' }}"
+                                   placeholder="Nombre científico (opcional)">
+                            <div class="form-text">Ej: Monstera deliciosa, Rosa spp.</div>
+                        </div>
+                        
+                        <!-- Estado -->
+                        <div class="mb-3">
+                            <label for="estado" class="form-label">
+                                <i class="fas fa-circle"></i> Estado
+                            </label>
+                            <select class="form-select" id="estado" name="estado">
+                                <option value="activa" {% if planta.estado == 'activa' %}selected{% endif %}>Activa</option>
+                                <option value="inactiva" {% if planta.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
+                                <option value="enferma" {% if planta.estado == 'enferma' %}selected{% endif %}>Enferma</option>
+                                <option value="trasplantada" {% if planta.estado == 'trasplantada' %}selected{% endif %}>Trasplantada</option>
+                                <option value="cosechada" {% if planta.estado == 'cosechada' %}selected{% endif %}>Cosechada</option>
+                            </select>
+                            <div class="form-text">Estado actual de la planta.</div>
+                        </div>
+                        
+                        <!-- Información de solo lectura (no editable) -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Información del Sistema</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-2">
+                                            <strong><i class="fas fa-calendar-alt"></i> Fecha de registro:</strong><br>
+                                            {% if planta.fecha_registro %}
+                                                {{ planta.fecha_registro.strftime('%d/%m/%Y %H:%M') }}
+                                            {% else %}
+                                                No disponible
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-2">
+                                            <strong><i class="fas fa-hashtag"></i> ID:</strong><br>
+                                            {{ planta.id }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                            <div>
+                                <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" class="btn btn-outline-primary me-2">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Card de ayuda -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="fas fa-lightbulb text-warning"></i> Notas importantes</h6>
+                    <ul class="mb-0 small">
+                        <li>Los campos marcados con * son obligatorios.</li>
+                        <li>La fecha de registro no se puede modificar (se establece al crear la planta).</li>
+                        <li>El estado ayuda a clasificar el estado actual de la planta.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Incluir FontAwesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .form-label i {
+        margin-right: 8px;
+        width: 20px;
+        text-align: center;
+    }
+    .card {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+    }
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}

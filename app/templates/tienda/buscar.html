@@ -1,0 +1,99 @@
+{% extends "tienda/base.html" %}
+
+{% block title %}Buscar Plantas - Tienda{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-search text-success"></i> Buscar Plantas
+        </h2>
+    </div>
+</div>
+
+<!-- Formulario de búsqueda avanzada -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-filter text-success"></i> Filtros
+                </h5>
+                
+                <form method="GET" action="{{ url_for('tienda.buscar_plantas') }}">
+                    <!-- Búsqueda por texto -->
+                    <div class="mb-3">
+                        <label for="q" class="form-label">Palabras clave</label>
+                        <input type="text" class="form-control" id="q" name="q" 
+                               value="{{ query }}" placeholder="Nombre, especie...">
+                    </div>
+                    
+                    <!-- Filtro por precio -->
+                    <div class="mb-3">
+                        <label class="form-label">Rango de precio</label>
+                        <div class="row g-2">
+                            <div class="col">
+                                <input type="number" class="form-control" name="precio_min" 
+                                       placeholder="Mín" value="{{ precio_min }}">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" name="precio_max" 
+                                       placeholder="Máx" value="{{ precio_max }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro por categoría -->
+                    <div class="mb-3">
+                        <label for="categoria" class="form-label">Categoría</label>
+                        <select class="form-select" id="categoria" name="categoria">
+                            <option value="">Todas las categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat }}" {% if cat == categoria_seleccionada %}selected{% endif %}>
+                                {{ cat|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-search"></i> Aplicar filtros
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resultados -->
+    <div class="col-md-8">
+        {% if query or precio_min or precio_max or categoria_seleccionada %}
+        <div class="alert alert-light mb-3">
+            <i class="fas fa-info-circle"></i>
+            {% if query %}Buscando: <strong>"{{ query }}"</strong>{% endif %}
+            {% if categoria_seleccionada %}, Categoría: <strong>{{ categoria_seleccionada|title }}</strong>{% endif %}
+            {% if precio_min or precio_max %}, Precio: 
+                {% if precio_min %}<strong>${{ precio_min }}</strong>{% endif %}
+                {% if precio_min and precio_max %} - {% endif %}
+                {% if precio_max %}<strong>${{ precio_max }}</strong>{% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if plantas %}
+        <div class="row">
+            {% for planta in plantas %}
+            <div class="col-md-6 mb-4">
+                {% include "tienda/_card_planta.html" %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center py-5">
+            <i class="fas fa-search fa-4x text-muted mb-3"></i>
+            <h4>No se encontraron resultados</h4>
+            <p>Intenta con otros términos de búsqueda o filtros.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

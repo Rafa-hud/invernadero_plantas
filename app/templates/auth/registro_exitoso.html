@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}¡Registro Exitoso!{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <!-- Icono de éxito -->
+                    <div class="mb-4">
+                        <div class="rounded-circle bg-success d-inline-flex p-4">
+                            <i class="fas fa-check fa-4x text-white"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Mensaje principal -->
+                    <h1 class="display-5 text-success mb-3">
+                        ¡Registro Completado!
+                    </h1>
+                    
+                    <p class="lead mb-4">
+                        Bienvenido/a <strong>{{ current_user.nombre }}</strong> a nuestra tienda de plantas.
+                        Tu cuenta ha sido creada exitosamente.
+                    </p>
+                    
+                    <!-- Información de la cuenta -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-user-circle text-success"></i> Información de tu cuenta
+                            </h5>
+                            <div class="row text-start">
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>Nombre:</strong> {{ current_user.nombre }}</p>
+                                    <p class="mb-2"><strong>Correo:</strong> {{ current_user.correo }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>Tipo de cuenta:</strong> Cliente</p>
+                                    <p class="mb-0"><strong>Fecha de registro:</strong> {{ current_user.fecha_registro.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pasos siguientes -->
+                    <div class="mb-5">
+                        <h5 class="mb-3">
+                            <i class="fas fa-road text-success"></i> ¿Qué puedes hacer ahora?
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-success">
+                                    <div class="card-body">
+                                        <i class="fas fa-store fa-2x text-success mb-3"></i>
+                                        <h6>Explorar la tienda</h6>
+                                        <p class="small text-muted">Descubre nuestras plantas disponibles</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-success">
+                                    <div class="card-body">
+                                        <i class="fas fa-user-cog fa-2x text-success mb-3"></i>
+                                        <h6>Completar perfil</h6>
+                                        <p class="small text-muted">Agrega más información a tu cuenta</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-success">
+                                    <div class="card-body">
+                                        <i class="fas fa-gift fa-2x text-success mb-3"></i>
+                                        <h6>Oferta de bienvenida</h6>
+                                        <p class="small text-muted">10% de descuento en tu primera compra</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-center">
+                        <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-success btn-lg me-md-2">
+                            <i class="fas fa-store"></i> Ir a la Tienda
+                        </a>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-success btn-lg">
+                            <i class="fas fa-tachometer-alt"></i> Ver Dashboard
+                        </a>
+                    </div>
+                    
+                    <!-- Correo de confirmación -->
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-envelope"></i>
+                        Hemos enviado un correo de confirmación a <strong>{{ current_user.correo }}</strong>.
+                        Por favor verifica tu bandeja de entrada.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .rounded-circle {
+        width: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .card {
+        border-radius: 15px;
+    }
+    
+    .border-success {
+        border: 2px solid #28a745 !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Cliente{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white text-center py-4">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i> Crear Cuenta de Cliente
+                    </h3>
+                    <p class="mb-0 mt-2 opacity-75">Únete a nuestra tienda de plantas</p>
+                </div>
+                
+                <div class="card-body p-4 p-md-5">
+                    <!-- Información -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle"></i> Beneficios de registrarte:
+                        </h6>
+                        <ul class="mb-0 small">
+                            <li>Acceso a nuestra tienda online</li>
+                            <li>Historial de compras</li>
+                            <li>Descuentos exclusivos</li>
+                            <li>Seguimiento de pedidos</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('auth.registro_cliente') }}">
+                        <!-- Datos personales -->
+                        <div class="mb-4">
+                            <h5 class="text-success mb-3">
+                                <i class="fas fa-user"></i> Datos Personales
+                            </h5>
+                            
+                            <!-- Nombre completo -->
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">
+                                    <i class="fas fa-user text-success"></i> Nombre Completo *
+                                </label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" 
+                                       value="{{ nombre or '' }}" required
+                                       placeholder="Ej: María González">
+                                <div class="form-text">Como quieres que te llamemos</div>
+                            </div>
+                            
+                            <!-- Correo electrónico -->
+                            <div class="mb-3">
+                                <label for="correo" class="form-label">
+                                    <i class="fas fa-envelope text-success"></i> Correo Electrónico *
+                                </label>
+                                <input type="email" class="form-control" id="correo" name="correo"
+                                       value="{{ correo or '' }}" required
+                                       placeholder="ejemplo@correo.com">
+                                <div class="form-text">Usaremos este correo para contactarte</div>
+                            </div>
+                            
+                            <!-- Teléfono -->
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">
+                                    <i class="fas fa-phone text-success"></i> Teléfono (Opcional)
+                                </label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono"
+                                       value="{{ telefono or '' }}"
+                                       placeholder="Ej: +1 234 567 8900">
+                            </div>
+                            
+                            <!-- Dirección -->
+                            <div class="mb-3">
+                                <label for="direccion" class="form-label">
+                                    <i class="fas fa-home text-success"></i> Dirección (Opcional)
+                                </label>
+                                <textarea class="form-control" id="direccion" name="direccion" 
+                                          rows="2" placeholder="Tu dirección para envíos">{{ direccion or '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Seguridad -->
+                        <div class="mb-4">
+                            <h5 class="text-success mb-3">
+                                <i class="fas fa-lock"></i> Seguridad
+                            </h5>
+                            
+                            <!-- Contraseña -->
+                            <div class="mb-3">
+                                <label for="contrasenia" class="form-label">
+                                    <i class="fas fa-key text-success"></i> Contraseña *
+                                </label>
+                                <input type="password" class="form-control" id="contrasenia" name="contrasenia" 
+                                       required minlength="6">
+                                <div class="form-text">Mínimo 6 caracteres</div>
+                            </div>
+                            
+                            <!-- Confirmar contraseña -->
+                            <div class="mb-3">
+                                <label for="confirmar_contrasenia" class="form-label">
+                                    <i class="fas fa-key text-success"></i> Confirmar Contraseña *
+                                </label>
+                                <input type="password" class="form-control" id="confirmar_contrasenia" 
+                                       name="confirmar_contrasenia" required minlength="6">
+                            </div>
+                            
+                            <!-- Verificador de fortaleza de contraseña -->
+                            <div class="progress mb-3" style="height: 5px; display: none;" id="password-strength-bar">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted" id="password-strength-text"></small>
+                        </div>
+                        
+                        <!-- Términos y condiciones -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="terminos" required>
+                                <label class="form-check-label" for="terminos">
+                                    Acepto los 
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#terminosModal">
+                                        Términos y Condiciones
+                                    </a>
+                                    y la 
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#privacidadModal">
+                                        Política de Privacidad
+                                    </a>
+                                    *
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-user-plus"></i> Crear Cuenta
+                            </button>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-sign-in-alt"></i> Ya tengo una cuenta
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Redes sociales (opcional) -->
+                    <div class="text-center">
+                        <p class="text-muted mb-3">O regístrate con</p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <button class="btn btn-outline-primary">
+                                <i class="fab fa-google"></i> Google
+                            </button>
+                            <button class="btn btn-outline-dark">
+                                <i class="fab fa-facebook"></i> Facebook
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light text-center py-3">
+                    <small class="text-muted">
+                        ¿Eres administrador? 
+                        <a href="{{ url_for('auth.login') }}">Inicia sesión aquí</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Términos y Condiciones -->
+<div class="modal fade" id="terminosModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-contract"></i> Términos y Condiciones
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Aceptación de los Términos</h6>
+                <p>Al registrarte y usar nuestros servicios, aceptas estos términos y condiciones.</p>
+                
+                <h6>2. Uso de la Cuenta</h6>
+                <p>Eres responsable de mantener la confidencialidad de tu cuenta y contraseña.</p>
+                
+                <h6>3. Compras y Pagos</h6>
+                <p>Los precios están en dólares americanos e incluyen impuestos aplicables.</p>
+                
+                <h6>4. Envíos y Entregas</h6>
+                <p>Los tiempos de entrega pueden variar según la ubicación.</p>
+                
+                <h6>5. Devoluciones y Reembolsos</h6>
+                <p>Aceptamos devoluciones dentro de los 7 días posteriores a la recepción.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Política de Privacidad -->
+<div class="modal fade" id="privacidadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-shield-alt"></i> Política de Privacidad
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Información que Recopilamos</h6>
+                <p>Recopilamos información personal como nombre, correo electrónico, teléfono y dirección.</p>
+                
+                <h6>2. Uso de la Información</h6>
+                <p>Utilizamos tu información para procesar pedidos, mejorar nuestros servicios y comunicarnos contigo.</p>
+                
+                <h6>3. Protección de Datos</h6>
+                <p>Implementamos medidas de seguridad para proteger tu información personal.</p>
+                
+                <h6>4. Cookies</h6>
+                <p>Utilizamos cookies para mejorar tu experiencia de usuario.</p>
+                
+                <h6>5. Tus Derechos</h6>
+                <p>Tienes derecho a acceder, corregir o eliminar tu información personal.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estilos adicionales -->
+<style>
+    .card {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+    
+    .form-control:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+    
+    .progress-bar {
+        transition: width 0.5s ease;
+    }
+    
+    .btn-social {
+        width: 100px;
+    }
+</style>
+
+<!-- Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('contrasenia');
+    const confirmPasswordInput = document.getElementById('confirmar_contrasenia');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthText = document.getElementById('password-strength-text');
+    
+    // Verificador de fortaleza de contraseña
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        
+        // Longitud
+        if (password.length >= 6) strength += 20;
+        if (password.length >= 8) strength += 20;
+        
+        // Tipos de caracteres
+        if (/[a-z]/.test(password)) strength += 20;
+        if (/[A-Z]/.test(password)) strength += 20;
+        if (/[0-9]/.test(password)) strength += 10;
+        if (/[^A-Za-z0-9]/.test(password)) strength += 10;
+        
+        // Actualizar barra y texto
+        strengthBar.style.display = 'block';
+        strengthBar.querySelector('.progress-bar').style.width = strength + '%';
+        
+        // Cambiar color según fortaleza
+        let color = 'danger';
+        let text = 'Débil';
+        
+        if (strength >= 60) {
+            color = 'warning';
+            text = 'Media';
+        }
+        if (strength >= 80) {
+            color = 'success';
+            text = 'Fuerte';
+        }
+        
+        strengthBar.querySelector('.progress-bar').className = 'progress-bar bg-' + color;
+        strengthText.textContent = 'Fortaleza: ' + text;
+        strengthText.className = 'text-' + color;
+    });
+    
+    // Verificar coincidencia de contraseñas
+    confirmPasswordInput.addEventListener('input', function() {
+        if (passwordInput.value !== this.value && this.value.length > 0) {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        } else if (this.value.length > 0) {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        } else {
+            this.classList.remove('is-valid', 'is-invalid');
+        }
+    });
+    
+    // Validación del formulario
+    document.querySelector('form').addEventListener('submit', function(e) {
+        let valid = true;
+        
+        // Verificar contraseñas
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            alert('Las contraseñas no coinciden');
+            valid = false;
+        }
+        
+        // Verificar términos
+        if (!document.getElementById('terminos').checked) {
+            alert('Debes aceptar los términos y condiciones');
+            valid = false;
+        }
+        
+        if (!valid) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
