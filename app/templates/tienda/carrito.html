@@ -13,6 +13,91 @@
 
 <div class="row">
     <div class="col-md-8">
+        {% if plantas_carrito %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="100px">Producto</th>
+                                <th>Nombre</th>
+                                <th class="text-center">Precio</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-center">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in plantas_carrito %}
+                            <tr id="planta-{{ item.id }}">
+                                <td>
+                                    {% if item.imagen_url %}
+                                    <img src="{{ item.imagen_url }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ item.nombre }}">
+                                    {% else %}
+                                    <div class="img-thumbnail d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                        <i class="fas fa-leaf text-success"></i>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <h6 class="mb-1">{{ item.nombre }}</h6>
+                                    {% if item.categoria %}
+                                    <small class="text-muted">{{ item.categoria|title }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>${{ "%.2f"|format(item.precio_unitario) }}</strong>
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button class="btn btn-sm btn-outline-secondary btn-cantidad" 
+                                                data-planta-id="{{ item.id }}" 
+                                                data-action="decrease">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <input type="number" 
+                                               class="form-control form-control-sm text-center mx-2" 
+                                               value="{{ item.cantidad }}" 
+                                               min="1" 
+                                               max="{{ item.stock }}" 
+                                               style="width: 60px;"
+                                               id="cantidad-{{ item.id }}">
+                                        <button class="btn btn-sm btn-outline-secondary btn-cantidad" 
+                                                data-planta-id="{{ item.id }}" 
+                                                data-action="increase">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Stock: {{ item.stock }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="text-success">${{ "%.2f"|format(item.total_item) }}</strong>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger btn-eliminar" 
+                                            data-planta-id="{{ item.id }}"
+                                            title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-3">
+                    <button class="btn btn-outline-danger" id="btn-vaciar-carrito">
+                        <i class="fas fa-trash"></i> Vaciar Carrito
+                    </button>
+                    <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-success">
+                        <i class="fas fa-arrow-left"></i> Seguir Comprando
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
         <div class="card border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-center py-5">
@@ -25,6 +110,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
     
     <div class="col-md-4">
@@ -36,33 +122,257 @@
                 
                 <div class="d-flex justify-content-between mb-2">
                     <span>Subtotal</span>
-                    <span>$0.00</span>
+                    <span id="subtotal">${{ "%.2f"|format(subtotal) }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span>Envío</span>
-                    <span>$0.00</span>
+                    <span id="envio">${{ "%.2f"|format(envio) }}</span>
+                    {% if envio == 0 %}
+                    <small class="text-success">¡Gratis!</small>
+                    {% endif %}
                 </div>
                 <div class="d-flex justify-content-between mb-3">
                     <span>IVA (12%)</span>
-                    <span>$0.00</span>
+                    <span id="iva">${{ "%.2f"|format(iva) }}</span>
                 </div>
                 
                 <hr>
                 
                 <div class="d-flex justify-content-between mb-4">
                     <h5>Total</h5>
-                    <h5>$0.00</h5>
+                    <h5 id="total">${{ "%.2f"|format(total) }}</h5>
                 </div>
                 
-                <button class="btn btn-success btn-lg w-100 mb-3" disabled>
-                    <i class="fas fa-lock"></i> Proceder al pago
-                </button>
-                
-                <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-arrow-left"></i> Seguir comprando
+                {% if plantas_carrito %}
+                <a href="{{ url_for('tienda.checkout') }}" class="btn btn-success btn-lg w-100 mb-3">
+                    <i class="fas fa-lock"></i> Proceder al Pago
                 </a>
+                {% else %}
+                <button class="btn btn-success btn-lg w-100 mb-3" disabled>
+                    <i class="fas fa-lock"></i> Proceder al Pago
+                </button>
+                {% endif %}
+                
+                <div class="alert alert-light border">
+                    <small>
+                        <i class="fas fa-truck text-success"></i> 
+                        <strong>Envío gratis</strong> en compras mayores a $50
+                    </small>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar acción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- El mensaje se cargará aquí -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirm-action">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Función para actualizar el resumen
+    function actualizarResumen() {
+        let subtotal = 0;
+        
+        // Calcular nuevo subtotal
+        $('tbody tr[id^="planta-"]').each(function() {
+            const plantaId = $(this).attr('id').replace('planta-', '');
+            const cantidad = parseInt($('#cantidad-' + plantaId).val());
+            const precio = parseFloat($(this).find('td:nth-child(3) strong').text().replace('$', ''));
+            const total = cantidad * precio;
+            
+            // Actualizar total de la fila
+            $(this).find('td:nth-child(5) strong').text('$' + total.toFixed(2));
+            
+            subtotal += total;
+        });
+        
+        // Calcular envío
+        const envio = subtotal >= 50 ? 0 : 5.99;
+        const iva = subtotal * 0.12;
+        const total = subtotal + envio + iva;
+        
+        // Actualizar valores en el resumen
+        $('#subtotal').text('$' + subtotal.toFixed(2));
+        $('#envio').text('$' + envio.toFixed(2));
+        $('#iva').text('$' + iva.toFixed(2));
+        $('#total').text('$' + total.toFixed(2));
+    }
+    
+    // Actualizar cantidad
+    $('.btn-cantidad').click(function() {
+        const plantaId = $(this).data('planta-id');
+        const action = $(this).data('action');
+        const input = $('#cantidad-' + plantaId);
+        let cantidad = parseInt(input.val());
+        const maxStock = parseInt(input.attr('max'));
+        
+        if (action === 'increase' && cantidad < maxStock) {
+            cantidad++;
+        } else if (action === 'decrease' && cantidad > 1) {
+            cantidad--;
+        } else {
+            return;
+        }
+        
+        input.val(cantidad);
+        
+        // Enviar actualización al servidor
+        $.ajax({
+            url: '/tienda/carrito/actualizar/' + plantaId,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ cantidad: cantidad }),
+            success: function(response) {
+                if (response.success) {
+                    actualizarResumen();
+                    // Actualizar contador en el navbar si existe
+                    const badge = $('.carrito-flotante .badge');
+                    if (badge.length) {
+                        badge.text(response.carrito_count);
+                    }
+                } else {
+                    Swal.fire('Error', response.message, 'error');
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'No se pudo actualizar la cantidad', 'error');
+            }
+        });
+    });
+    
+    // Cambio manual en el input
+    $('input[id^="cantidad-"]').change(function() {
+        const plantaId = $(this).attr('id').replace('cantidad-', '');
+        const cantidad = parseInt($(this).val());
+        const maxStock = parseInt($(this).attr('max'));
+        
+        if (cantidad < 1 || cantidad > maxStock) {
+            Swal.fire('Error', `La cantidad debe estar entre 1 y ${maxStock}`, 'error');
+            $(this).val($(this).data('old-value') || 1);
+            return;
+        }
+        
+        // Enviar actualización al servidor
+        $.ajax({
+            url: '/tienda/carrito/actualizar/' + plantaId,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ cantidad: cantidad }),
+            success: function(response) {
+                if (response.success) {
+                    actualizarResumen();
+                    // Actualizar contador en el navbar si existe
+                    const badge = $('.carrito-flotante .badge');
+                    if (badge.length) {
+                        badge.text(response.carrito_count);
+                    }
+                } else {
+                    Swal.fire('Error', response.message, 'error');
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'No se pudo actualizar la cantidad', 'error');
+            }
+        });
+    }).focus(function() {
+        $(this).data('old-value', $(this).val());
+    });
+    
+    // Eliminar producto del carrito
+    $('.btn-eliminar').click(function() {
+        const plantaId = $(this).data('planta-id');
+        const plantaNombre = $(this).closest('tr').find('h6').text().trim();
+        
+        $('#modal-body').html(`¿Estás seguro de eliminar <strong>${plantaNombre}</strong> del carrito?`);
+        $('#confirm-action')
+            .off('click')
+            .on('click', function() {
+                $.ajax({
+                    url: '/tienda/carrito/eliminar/' + plantaId,
+                    method: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            $('#planta-' + plantaId).remove();
+                            actualizarResumen();
+                            
+                            // Actualizar contador
+                            const badge = $('.carrito-flotante .badge');
+                            if (badge.length) {
+                                badge.text(response.carrito_count);
+                            }
+                            
+                            // Si no quedan productos, recargar página
+                            if (response.carrito_count === 0) {
+                                location.reload();
+                            }
+                            
+                            Swal.fire('Eliminado', response.message, 'success');
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                        $('#confirmModal').modal('hide');
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
+                        $('#confirmModal').modal('hide');
+                    }
+                });
+            });
+        
+        $('#confirmModal').modal('show');
+    });
+    
+    // Vaciar carrito
+    $('#btn-vaciar-carrito').click(function() {
+        $('#modal-body').html('¿Estás seguro de vaciar todo el carrito?');
+        $('#confirm-action')
+            .off('click')
+            .on('click', function() {
+                $.ajax({
+                    url: '/tienda/carrito/vaciar',
+                    method: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                        $('#confirmModal').modal('hide');
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'No se pudo vaciar el carrito', 'error');
+                        $('#confirmModal').modal('hide');
+                    }
+                });
+            });
+        
+        $('#confirmModal').modal('show');
+    });
+    
+    // Inicializar SweetAlert si no está cargado
+    if (typeof Swal === 'undefined') {
+        const swalScript = document.createElement('script');
+        swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        document.head.appendChild(swalScript);
+    }
+});
+</script>
 {% endblock %}

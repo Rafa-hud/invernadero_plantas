@@ -15,30 +15,53 @@ class Usuario(db.Model, UserMixin):
     nombre = db.Column(db.String(100), nullable=False)
     correo = db.Column(db.String(100), unique=True, nullable=False)
     contrasenia_hash = db.Column(db.String(255), nullable=False)
-    rol = db.Column(db.String(20), default='cliente')  # 'cliente' o 'admin'
-    telefono = db.Column(db.String(20))
-    direccion = db.Column(db.Text)
+    rol = db.Column(db.String(20), default='usuario')
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     estado = db.Column(db.String(20), default='activo')
     
-    # Campos adicionales para clientes
-    fecha_nacimiento = db.Column(db.Date)
-    genero = db.Column(db.String(10))
-    preferencias = db.Column(db.Text)  # JSON con preferencias del cliente
+    # Relación con plantas
+    plantas = db.relationship('Planta', backref='usuario', lazy=True)
+    
+    def set_password(self, password):
+        self.contrasenia_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.contrasenia_hash, password)
+
+class Pedido(db.Model):
+    __tablename__ = 'pedidos'
+    
+    id_pedido = db.Column(db.Integer, primary_key=True)
+    id_cliente = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    id_pago = db.Column(db.Integer)  # Se llenará después del pago
+    id_direccion = db.Column(db.Integer)  # Se llenará con la dirección de envío
+    estado_pedido = db.Column(db.String(50), default='pendiente')  # pendiente, procesando, enviado, entregado, cancelado
+    fecha_orden = db.Column(db.DateTime, default=datetime.utcnow)
+    costo_total = db.Column(db.Float, default=0.0)
     
     # Relaciones
-    plantas = db.relationship('Planta', backref='usuario', lazy=True)
-    respaldos = db.relationship('Respaldo', backref='usuario', lazy=True)
-    
-    # Método para verificar contraseña
-    def verificar_contrasenia(self, contrasenia):
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.contrasenia_hash, contrasenia)
+    cliente = db.relationship('Usuario', backref='pedidos')
+    detalles = db.relationship('PedidoDetalle', backref='pedido', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
-        return f'<Usuario {self.nombre} ({self.rol})>'
+        return f'<Pedido {self.id_pedido} - {self.estado_pedido}>'
 
-
+class PedidoDetalle(db.Model):
+    __tablename__ = 'pedido_detalle'
+    
+    id_detalle = db.Column(db.Integer, primary_key=True)
+    id_pedido = db.Column(db.Integer, db.ForeignKey('pedidos.id_pedido'), nullable=False)
+    id_planta = db.Column(db.Integer, db.ForeignKey('plantas.id'), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False, default=1)
+    precio_en_compra = db.Column(db.Float, nullable=False)
+    
+    # Relaciones
+    planta = db.relationship('Planta', backref='detalles_pedido')
+    
+    def __repr__(self):
+        return f'<PedidoDetalle {self.id_detalle} - {self.cantidad}x Planta {self.id_planta}>'
+    
+    
 class Planta(db.Model):
     __tablename__ = 'plantas'
     
@@ -47,9 +70,9 @@ class Planta(db.Model):
     especie = db.Column(db.String(100))
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     estado = db.Column(db.String(20), default='activa')
-    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     
-    # Campos para tienda
+    # ===== CAMPOS PARA TIENDA =====
     precio = db.Column(db.Float, default=0.0)
     descripcion = db.Column(db.Text)
     disponible_venta = db.Column(db.Boolean, default=False)
@@ -57,11 +80,12 @@ class Planta(db.Model):
     categoria = db.Column(db.String(50))
     imagen_url = db.Column(db.String(255))
     
-    # Relaciones
+    # Relación con riegos
     riegos = db.relationship('RegistroRiego', backref='planta', lazy=True)
     
     def __repr__(self):
         return f'<Planta {self.nombre}>'
+
 
 class RegistroRiego(db.Model):
     __tablename__ = 'registros_riego'
@@ -80,16 +104,13 @@ class Respaldo(db.Model):
     __tablename__ = 'respaldos'
     
     id = db.Column(db.Integer, primary_key=True)
-    fecha_respaldo = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    tipo_respaldo = db.Column(db.Enum('completo', 'diferencial', 'minima_modificacion'), 
-                             nullable=False)
-    ruta_archivo = db.Column(db.String(500), nullable=False)
+    tipo_respaldo = db.Column(db.String(50))
+    ruta_archivo = db.Column(db.String(255))
+    fecha_respaldo = db.Column(db.DateTime, default=datetime.utcnow)
     tamaño_mb = db.Column(db.Float)
-    realizado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    realizado_por = db.Column(db.String(100))
     almacenamiento = db.Column(db.String(50))
     checksum = db.Column(db.String(64))
-    
-    
     
     def __repr__(self):
         return f'<Respaldo {self.tipo_respaldo} - {self.fecha_respaldo}>'
@@ -98,15 +119,15 @@ class HistorialAcceso(db.Model):
     __tablename__ = 'historial_accesos'
     
     id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    fecha_acceso = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    fecha_acceso = db.Column(db.DateTime, default=datetime.utcnow)
     ip_address = db.Column(db.String(45))
-    user_agent = db.Column(db.String(500))
-    estado_sesion = db.Column(db.Enum('exitoso', 'fallido', 'cerrada'), default='exitoso')
-    accion = db.Column(db.String(100))
+    user_agent = db.Column(db.Text)
+    estado_sesion = db.Column(db.String(20))
+    accion = db.Column(db.String(50))
     
     def __repr__(self):
-        return f'<Acceso {self.usuario_id} - {self.estado_sesion}>'
+        return f'<HistorialAcceso {self.usuario_id} - {self.fecha_acceso}>'
 
 # Configuración de login manager
 @login_manager.user_loader

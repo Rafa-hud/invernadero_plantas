@@ -283,7 +283,8 @@
                         {% if planta.stock > 0 %}
                         <button class="btn btn-outline-success btn-sm agregar-carrito" 
                                 data-planta-id="{{ planta.id }}"
-                                data-planta-nombre="{{ planta.nombre }}">
+                                data-planta-nombre="{{ planta.nombre }}"
+                                data-planta-stock="{{ planta.stock }}">
                             <i class="fas fa-cart-plus"></i> Añadir al carrito
                         </button>
                         {% else %}
@@ -309,79 +310,201 @@
 
 <!-- Carrito flotante -->
 <div class="carrito-flotante">
-    <button class="btn btn-success btn-lg rounded-circle" data-bs-toggle="modal" data-bs-target="#carritoModal">
+    <a href="{{ url_for('tienda.ver_carrito') }}" class="btn btn-success btn-lg rounded-circle">
         <i class="fas fa-shopping-cart"></i>
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        <span id="carrito-contador" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
             0
         </span>
-    </button>
-</div>
-
-<!-- Modal del carrito -->
-<div class="modal fade" id="carritoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-shopping-cart"></i> Tu Carrito
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div id="carrito-vacio" class="text-center py-5">
-                    <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
-                    <h5>Tu carrito está vacío</h5>
-                    <p class="text-muted">Agrega algunas plantas para comenzar</p>
-                </div>
-                <div id="carrito-contenido" style="display: none;">
-                    <!-- Aquí se cargarán los items del carrito -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Seguir comprando</button>
-                <a href="{{ url_for('tienda.ver_carrito') }}" class="btn btn-success">Ver carrito completo</a>
-            </div>
-        </div>
-    </div>
+    </a>
 </div>
 
 {% block extra_js %}
 <script>
 $(document).ready(function() {
+    // Función para obtener el token CSRF desde los meta tags
+    function getCSRFToken() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        return csrfToken ? csrfToken.content : '';
+    }
+    
+    // Función para actualizar el contador del carrito
+    function actualizarContadorCarrito() {
+        fetch('{{ url_for("tienda.cantidad_carrito") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const contador = document.getElementById('carrito-contador');
+                    contador.textContent = data.total_items;
+                    
+                    if (data.total_items > 0) {
+                        contador.style.display = 'block';
+                    } else {
+                        contador.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar contador del carrito:', error);
+            });
+    }
+    
+    // Cargar el contador inicial del carrito
+    actualizarContadorCarrito();
+    
     // Agregar al carrito
     $('.agregar-carrito').click(function() {
         const plantaId = $(this).data('planta-id');
         const plantaNombre = $(this).data('planta-nombre');
+        const plantaStock = $(this).data('planta-stock');
+        const boton = $(this);
+        const card = $(this).closest('.card');
         
-        // Mostrar alerta de confirmación
-        Swal.fire({
-            icon: 'success',
-            title: '¡Agregado al carrito!',
-            text: plantaNombre + ' ha sido agregada a tu carrito',
-            timer: 1500,
-            showConfirmButton: false
+        // Guardar el HTML original del botón
+        const originalHtml = boton.html();
+        
+        // Deshabilitar botón temporalmente
+        boton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+        
+        // Hacer la petición AJAX al backend
+        fetch('{{ url_for("tienda.agregar_al_carrito", planta_id=0) }}'.replace('0', plantaId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                cantidad: 1
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Mostrar notificación
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Agregado al carrito!',
+                        text: plantaNombre + ' ha sido agregada a tu carrito',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end'
+                    });
+                } else {
+                    // Fallback si SweetAlert no está disponible
+                    alert(plantaNombre + ' agregada al carrito');
+                }
+                
+                // Actualizar contador del carrito
+                const contador = document.getElementById('carrito-contador');
+                contador.textContent = data.carrito_count;
+                contador.style.display = 'block';
+                
+                // Actualizar visualización del stock
+                const stockBadge = card.find('.badge');
+                const stockText = card.find('small.text-muted');
+                
+                // Leer stock actual y reducir en 1
+                let currentStock = parseInt(plantaStock) - 1;
+                $(this).data('planta-stock', currentStock);
+                
+                // Actualizar visualización
+                stockText.text(currentStock + ' en stock');
+                
+                if (currentStock === 0) {
+                    stockBadge.removeClass('bg-success bg-warning').addClass('bg-danger').text('Agotado');
+                    boton.prop('disabled', true).removeClass('btn-outline-success').addClass('btn-outline-secondary')
+                        .html('<i class="fas fa-times"></i> Agotado');
+                } else if (currentStock < 5) {
+                    stockBadge.removeClass('bg-success').addClass('bg-warning').text('Últimas unidades');
+                }
+                
+                // Mostrar animación de éxito
+                boton.removeClass('btn-outline-success').addClass('btn-success').html('<i class="fas fa-check"></i> Agregado');
+                
+            } else {
+                // Mostrar error
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'No se pudo agregar al carrito'
+                    });
+                } else {
+                    alert('Error: ' + data.message);
+                }
+                
+                // Restaurar botón
+                boton.html(originalHtml).prop('disabled', false);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Hubo un problema al agregar al carrito. Intenta nuevamente.'
+                });
+            } else {
+                alert('Error al agregar al carrito');
+            }
+            
+            // Restaurar botón en caso de error
+            boton.html(originalHtml).prop('disabled', false);
+        })
+        .finally(() => {
+            // Rehabilitar botón después de 2 segundos si aún no se ha restaurado
+            setTimeout(() => {
+                if (boton.prop('disabled')) {
+                    boton.prop('disabled', false);
+                    // Solo restaurar el HTML si no se hizo el éxito
+                    if (!boton.hasClass('btn-success')) {
+                        boton.html(originalHtml);
+                    }
+                }
+            }, 2000);
+            
+            // Restaurar apariencia original después de 3 segundos
+            setTimeout(() => {
+                boton.removeClass('btn-success').addClass('btn-outline-success').html('<i class="fas fa-cart-plus"></i> Añadir al carrito');
+            }, 3000);
         });
-        
-        // Actualizar contador del carrito
-        const badge = $('.carrito-flotante .badge');
-        let count = parseInt(badge.text()) || 0;
-        badge.text(count + 1);
-        
-        // Aquí en una implementación real harías una llamada AJAX para guardar en el carrito
-        // fetch('/tienda/agregar-carrito', {
-        //     method: 'POST',
-        //     headers: {'Content-Type': 'application/json'},
-        //     body: JSON.stringify({planta_id: plantaId, cantidad: 1})
-        // });
     });
     
-    // Inicializar SweetAlert si no está cargado
+    // Si SweetAlert no está cargado, cargarlo dinámicamente
     if (typeof Swal === 'undefined') {
         const swalScript = document.createElement('script');
         swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        swalScript.onload = function() {
+            console.log('SweetAlert cargado dinámicamente');
+        };
         document.head.appendChild(swalScript);
     }
+    
+    // Cargar Bootstrap si no está cargado (para el carrusel)
+    if (typeof bootstrap === 'undefined') {
+        const bsScript = document.createElement('script');
+        bsScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js';
+        document.head.appendChild(bsScript);
+    }
 });
+
+// Función para formatear números con separadores de miles
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
 </script>
 
 <style>
@@ -417,6 +540,118 @@ $(document).ready(function() {
 
 .carousel-item li {
     margin-bottom: 0.5rem;
+}
+
+/* Estilos para el carrito flotante */
+.carrito-flotante {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1050;
+}
+
+.carrito-flotante .btn {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+    transition: all 0.3s ease;
+}
+
+.carrito-flotante .btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(25, 135, 84, 0.4);
+}
+
+.carrito-flotante .badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    min-width: 24px;
+}
+
+/* Estilos para las tarjetas de plantas */
+.card-planta {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.card-planta:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.card-planta-img {
+    height: 200px;
+    width: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.card-planta:hover .card-planta-img {
+    transform: scale(1.05);
+}
+
+.card-planta-body {
+    padding: 1.25rem;
+}
+
+.badge-categoria {
+    background-color: #e8f5e9;
+    color: #198754;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.precio {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #198754;
+}
+
+.planta-destacada {
+    border: 2px solid #ffc107;
+}
+
+/* Animaciones para el botón de agregar al carrito */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.btn-success {
+    animation: pulse 0.5s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .carrito-flotante {
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .carrito-flotante .btn {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .carousel-item-content {
+        padding: 2rem 1rem;
+    }
+    
+    .carousel-item-content h3 {
+        font-size: 1.5rem;
+    }
+    
+    .carousel-item-content p, 
+    .carousel-item-content li {
+        font-size: 1rem;
+    }
 }
 </style>
 {% endblock %}

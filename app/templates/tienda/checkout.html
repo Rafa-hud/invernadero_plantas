@@ -1,0 +1,345 @@
+{% extends "tienda/base.html" %}
+
+{% block title %}Finalizar Compra - Tienda{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-credit-card text-success"></i> Finalizar Compra
+        </h2>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('tienda.tienda_index') }}">Tienda</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('tienda.ver_carrito') }}">Carrito</a></li>
+                <li class="breadcrumb-item active">Checkout</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información del pedido -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-shopping-bag"></i> Resumen de tu Pedido
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if plantas_carrito and plantas_carrito|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Precio Unitario</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in plantas_carrito %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.imagen_url %}
+                                        <img src="{{ item.imagen_url }}" class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;" alt="{{ item.nombre }}">
+                                        {% else %}
+                                        <div class="img-thumbnail me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                            <i class="fas fa-leaf text-success"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-1">{{ item.nombre }}</h6>
+                                            {% if item.categoria %}
+                                            <span class="badge bg-light text-dark small">{{ item.categoria }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">${{ "%.2f"|format(item.precio_unitario) }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success">{{ item.cantidad }}</span>
+                                </td>
+                                <td class="text-end">${{ "%.2f"|format(item.total_item) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> No hay productos en el carrito
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Información de envío -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-truck text-success"></i> Información de Envío
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('tienda.checkout') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre completo *</label>
+                            <input type="text" class="form-control" name="nombre" 
+                                   value="{{ current_user.nombre if current_user.is_authenticated else '' }}" 
+                                   required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono de contacto *</label>
+                            <input type="tel" class="form-control" name="telefono_contacto" 
+                                   value="{{ current_user.telefono if current_user.is_authenticated else '' }}" 
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Dirección de envío *</label>
+                        <textarea class="form-control" name="direccion_envio" rows="3" required 
+                                  placeholder="Calle, número, colonia, ciudad, estado, código postal">
+                            {{ current_user.direccion if current_user.is_authenticated and current_user.direccion else '' }}
+                        </textarea>
+                        <small class="text-muted">Por favor, proporciona una dirección completa para la entrega.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas adicionales (opcional)</label>
+                        <textarea class="form-control" name="notas_pedido" rows="2" 
+                                  placeholder="Instrucciones especiales para la entrega, horarios preferidos, etc."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info mb-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle"></i> Tiempo de entrega
+                        </h6>
+                        <p class="mb-0">
+                            <strong>2-3 días hábiles</strong> para áreas urbanas<br>
+                            <strong>3-5 días hábiles</strong> para áreas rurales
+                        </p>
+                    </div>
+
+                    <!-- Método de pago -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-credit-card text-success"></i> Método de Pago
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-light border mb-3">
+                                <p class="mb-0">
+                                    <i class="fas fa-info-circle text-success"></i>
+                                    <strong>Modo demostración:</strong> Este es un sistema de demostración. 
+                                    Al confirmar el pedido, se guardará en la base de datos pero no se procesará ningún pago real.
+                                </p>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Método de pago simulado</label>
+                                    <select class="form-select" name="metodo_pago" required>
+                                        <option value="" selected disabled>Seleccionar método</option>
+                                        <option value="tarjeta">Tarjeta de crédito/débito</option>
+                                        <option value="paypal">PayPal</option>
+                                        <option value="transferencia">Transferencia bancaria</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Número de referencia (opcional)</label>
+                                    <input type="text" class="form-control" name="referencia" placeholder="Ej: TRANS123456">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="terminos" required>
+                        <label class="form-check-label" for="terminos">
+                            Acepto los <a href="#" class="text-success">términos y condiciones</a> y 
+                            <a href="#" class="text-success">política de privacidad</a>
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex">
+                        <a href="{{ url_for('tienda.ver_carrito') }}" class="btn btn-outline-secondary flex-fill me-md-2">
+                            <i class="fas fa-arrow-left"></i> Volver al carrito
+                        </a>
+                        <button type="submit" class="btn btn-success flex-fill btn-lg">
+                            <i class="fas fa-lock"></i> Confirmar Pedido
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen del pedido -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice-dollar"></i> Total del Pedido
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal</span>
+                    <span>${{ "%.2f"|format(subtotal) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Envío</span>
+                    <span>${{ "%.2f"|format(envio) }}</span>
+                    {% if envio == 0 %}
+                    <small class="text-success ms-1">¡Gratis!</small>
+                    {% endif %}
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>IVA (12%)</span>
+                    <span>${{ "%.2f"|format(iva) }}</span>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between mb-4">
+                    <h5>Total a Pagar</h5>
+                    <h5 class="text-success">${{ "%.2f"|format(total) }}</h5>
+                </div>
+                
+                {% if plantas_carrito and plantas_carrito|length > 0 %}
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Resumen de productos:</h6>
+                    <div class="list-group list-group-flush">
+                        {% for item in plantas_carrito %}
+                        <div class="list-group-item border-0 px-0 py-2">
+                            <div class="d-flex justify-content-between">
+                                <span class="small">{{ item.nombre }} x{{ item.cantidad }}</span>
+                                <span class="small">${{ "%.2f"|format(item.total_item) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="alert alert-light border mb-3">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-shipping-fast text-success"></i> 
+                        Información importante
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>Recibirás un correo de confirmación</li>
+                        <li>Nos pondremos en contacto para coordinar la entrega</li>
+                        <li>Las plantas se entregan en macetas de cultivo</li>
+                        <li>Garantía de plantas saludables por 7 días</li>
+                    </ul>
+                </div>
+                
+                <div class="text-center">
+                    <i class="fas fa-leaf fa-3x text-success opacity-25 mb-3"></i>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-seedling"></i> Tu compra ayuda a mantener nuestro vivero
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Confirmación antes de enviar el formulario
+    $('form').submit(function(e) {
+        e.preventDefault();
+        
+        // Verificar que el carrito no esté vacío
+        {% if not plantas_carrito or plantas_carrito|length == 0 %}
+        Swal.fire({
+            title: 'Carrito vacío',
+            text: 'No hay productos en tu carrito para procesar.',
+            icon: 'warning',
+            confirmButtonText: 'Volver al carrito',
+            confirmButtonColor: '#198754'
+        }).then(() => {
+            window.location.href = '{{ url_for("tienda.ver_carrito") }}';
+        });
+        return false;
+        {% endif %}
+        
+        Swal.fire({
+            title: '¿Confirmar pedido?',
+            html: `<div class="text-start">
+                      <p>Estás a punto de realizar un pedido por:</p>
+                      <div class="mb-2"><strong>Subtotal:</strong> ${{ "%.2f"|format(subtotal) }}</div>
+                      <div class="mb-2"><strong>Envío:</strong> ${{ "%.2f"|format(envio) }}</div>
+                      <div class="mb-2"><strong>IVA (12%):</strong> ${{ "%.2f"|format(iva) }}</div>
+                      <hr>
+                      <div class="h5 mb-3"><strong>Total:</strong> ${{ "%.2f"|format(total) }}</div>
+                      <small class="text-muted d-block">Recuerda que este es un sistema de demostración</small>
+                   </div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, confirmar pedido',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#198754',
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Deshabilitar botón para evitar doble clic
+                const submitBtn = $('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
+                
+                // Enviar formulario
+                this.submit();
+            }
+        });
+    });
+    
+    // Inicializar SweetAlert si no está cargado
+    if (typeof Swal === 'undefined') {
+        const swalScript = document.createElement('script');
+        swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        document.head.appendChild(swalScript);
+    }
+});
+</script>
+
+<style>
+.sticky-top {
+    position: -webkit-sticky;
+    position: sticky;
+}
+
+.card {
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.img-thumbnail {
+    border-radius: 8px;
+}
+
+.list-group-item:last-child {
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+@media (max-width: 768px) {
+    .sticky-top {
+        position: static;
+        margin-top: 20px;
+    }
+}
+</style>
+{% endblock %}
+{% endblock %}

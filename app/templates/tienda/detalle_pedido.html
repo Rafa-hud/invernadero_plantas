@@ -1,0 +1,770 @@
+{% extends "tienda/base.html" %}
+
+{% block title %}Pedido #{{ pedido.id_pedido }} - Tienda{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-2">
+                    <i class="fas fa-file-invoice text-success"></i> Pedido #{{ pedido.id_pedido }}
+                </h2>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('tienda.tienda_index') }}">Tienda</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('tienda.mis_pedidos') }}">Mis Pedidos</a></li>
+                        <li class="breadcrumb-item active">Pedido #{{ pedido.id_pedido }}</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="text-end">
+                {% if pedido.estado_pedido == 'pendiente' %}
+                <span class="badge bg-warning fs-6">Pendiente</span>
+                {% elif pedido.estado_pedido == 'procesando' %}
+                <span class="badge bg-info fs-6">Procesando</span>
+                {% elif pedido.estado_pedido == 'enviado' %}
+                <span class="badge bg-primary fs-6">Enviado</span>
+                {% elif pedido.estado_pedido == 'entregado' %}
+                <span class="badge bg-success fs-6">Entregado</span>
+                {% elif pedido.estado_pedido == 'cancelado' %}
+                <span class="badge bg-danger fs-6">Cancelado</span>
+                {% else %}
+                <span class="badge bg-secondary fs-6">{{ pedido.estado_pedido }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información del pedido -->
+    <div class="col-lg-8">
+        <!-- Productos del pedido -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-box-open text-success"></i> Productos del Pedido
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Precio Unitario</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in pedido.detalles %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if detalle.planta and detalle.planta.imagen_url %}
+                                        <img src="{{ detalle.planta.imagen_url }}" class="img-thumbnail me-3" style="width: 70px; height: 70px; object-fit: cover;" alt="{{ detalle.planta.nombre }}">
+                                        {% else %}
+                                        <div class="img-thumbnail me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
+                                            <i class="fas fa-leaf fa-2x text-success opacity-25"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-1">
+                                                {{ detalle.planta.nombre if detalle.planta else 'Planta no disponible' }}
+                                            </h6>
+                                            <small class="text-muted">
+                                                ID: {{ detalle.id_planta }} | 
+                                                Precio en compra: ${{ "%.2f"|format(detalle.precio_en_compra) }}
+                                            </small>
+                                            {% if detalle.planta %}
+                                            <br>
+                                            <a href="{{ url_for('tienda.ver_planta_tienda', id=detalle.planta.id) }}" class="btn btn-sm btn-outline-success mt-1">
+                                                <i class="fas fa-eye"></i> Ver planta
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <strong>${{ "%.2f"|format(detalle.precio_en_compra) }}</strong>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <span class="badge bg-success fs-6">{{ detalle.cantidad }}</span>
+                                </td>
+                                <td class="text-end align-middle">
+                                    <strong class="text-success">
+                                        ${{ "%.2f"|format(detalle.cantidad * detalle.precio_en_compra) }}
+                                    </strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                <td class="text-end">${{ "%.2f"|format(pedido.costo_total) }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Envío:</strong></td>
+                                <td class="text-end">$0.00</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>IVA (12%):</strong></td>
+                                <td class="text-end">${{ "%.2f"|format(pedido.costo_total * 0.12) }}</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td colspan="3" class="text-end"><h5 class="mb-0">Total:</h5></td>
+                                <td class="text-end">
+                                    <h5 class="mb-0 text-success">
+                                        ${{ "%.2f"|format(pedido.costo_total * 1.12) }}
+                                    </h5>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información del pedido -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle text-success"></i> Información del Pedido
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Detalles del Pedido</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-hashtag text-success me-2"></i>
+                                <strong>Número:</strong> #{{ pedido.id_pedido }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-calendar-alt text-success me-2"></i>
+                                <strong>Fecha:</strong> {{ pedido.fecha_orden.strftime('%d/%m/%Y') }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-clock text-success me-2"></i>
+                                <strong>Hora:</strong> {{ pedido.fecha_orden.strftime('%H:%M') }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-box text-success me-2"></i>
+                                <strong>Productos:</strong> {{ pedido.detalles|length }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-money-bill-wave text-success me-2"></i>
+                                <strong>Método de pago:</strong> Simulado
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Progreso del Pedido</h6>
+                        <div class="timeline">
+                            <div class="timeline-item {% if pedido.estado_pedido in ['pendiente', 'procesando', 'enviado', 'entregado'] %}active{% endif %}">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6>Pedido Realizado</h6>
+                                    <small>{{ pedido.fecha_orden.strftime('%d/%m/%Y %H:%M') }}</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item {% if pedido.estado_pedido in ['procesando', 'enviado', 'entregado'] %}active{% endif %}">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6>En Proceso</h6>
+                                    <small>Preparando tu pedido</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item {% if pedido.estado_pedido in ['enviado', 'entregado'] %}active{% endif %}">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6>Enviado</h6>
+                                    <small>En camino a tu dirección</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item {% if pedido.estado_pedido == 'entregado' %}active{% endif %}">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6>Entregado</h6>
+                                    <small>Pedido completado</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if pedido.estado_pedido in ['pendiente', 'procesando'] %}
+                <div class="alert alert-warning mt-4">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-exclamation-circle"></i> ¿Necesitas ayuda con este pedido?
+                    </h6>
+                    <p class="mb-2">
+                        Si tienes alguna pregunta o necesitas modificar tu pedido, por favor contáctanos.
+                    </p>
+                    <button class="btn btn-outline-danger btn-sm" onclick="mostrarCancelarPedido({{ pedido.id_pedido }})">
+                        <i class="fas fa-times"></i> Solicitar cancelación
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen y acciones -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt"></i> Resumen del Pedido
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Estado actual:</span>
+                    <span>
+                        {% if pedido.estado_pedido == 'pendiente' %}
+                        <span class="badge bg-warning">Pendiente</span>
+                        {% elif pedido.estado_pedido == 'procesando' %}
+                        <span class="badge bg-info">Procesando</span>
+                        {% elif pedido.estado_pedido == 'enviado' %}
+                        <span class="badge bg-primary">Enviado</span>
+                        {% elif pedido.estado_pedido == 'entregado' %}
+                        <span class="badge bg-success">Entregado</span>
+                        {% elif pedido.estado_pedido == 'cancelado' %}
+                        <span class="badge bg-danger">Cancelado</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ pedido.estado_pedido }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Número de pedido:</span>
+                    <span><strong>#{{ pedido.id_pedido }}</strong></span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Fecha:</span>
+                    <span>{{ pedido.fecha_orden.strftime('%d/%m/%Y') }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Productos:</span>
+                    <span>{{ pedido.detalles|length }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Subtotal:</span>
+                    <span>${{ "%.2f"|format(pedido.costo_total) }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span>IVA (12%):</span>
+                    <span>${{ "%.2f"|format(pedido.costo_total * 0.12) }}</span>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between mb-4">
+                    <h5>Total:</h5>
+                    <h5 class="text-success">${{ "%.2f"|format(pedido.costo_total * 1.12) }}</h5>
+                </div>
+                                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('tienda.mis_pedidos') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a mis pedidos
+                        </a>
+                        
+                        {% if pedido.estado_pedido == 'entregado' %}
+                        <button class="btn btn-outline-success" onclick="descargarFactura({{ pedido.id_pedido }})">
+                            <i class="fas fa-download"></i> Descargar factura
+                        </button>
+                        <button class="btn btn-success" onclick="volverAComprar({{ pedido.id_pedido }})">
+                            <i class="fas fa-redo"></i> Volver a comprar
+                        </button>
+                        {% elif pedido.estado_pedido == 'cancelado' %}
+                        <button class="btn btn-outline-danger" disabled>
+                            <i class="fas fa-ban"></i> Pedido cancelado
+                        </button>
+                        {% else %}
+                        <button class="btn btn-outline-primary" onclick="contactarSoporte({{ pedido.id_pedido }})">
+                            <i class="fas fa-headset"></i> Contactar soporte
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información de envío -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-truck text-success"></i> Información de Envío
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-muted">Dirección de envío:</h6>
+                    <p class="mb-1">
+                        <strong>{{ pedido.direccion_envio.nombre_destinatario if pedido.direccion_envio else current_user.nombre }}</strong>
+                    </p>
+                    <p class="mb-1">
+                        {{ pedido.direccion_envio.direccion if pedido.direccion_envio else 'Dirección no especificada' }}
+                    </p>
+                    <p class="mb-1">
+                        {{ pedido.direccion_envio.ciudad if pedido.direccion_envio else '' }}, 
+                        {{ pedido.direccion_envio.provincia if pedido.direccion_envio else '' }}
+                    </p>
+                    <p class="mb-0">
+                        Teléfono: {{ pedido.direccion_envio.telefono if pedido.direccion_envio else 'No especificado' }}
+                    </p>
+                </div>
+                
+                {% if pedido.estado_pedido == 'enviado' and pedido.numero_seguimiento %}
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-box-open"></i> Información de seguimiento
+                    </h6>
+                    <p class="mb-2">Tu pedido ha sido enviado</p>
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ pedido.numero_seguimiento }}" readonly id="trackingNumber{{ pedido.id_pedido }}">
+                        <button class="btn btn-outline-primary" onclick="copiarNumeroSeguimiento({{ pedido.id_pedido }})">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted mt-2 d-block">
+                        Puedes rastrear tu pedido en la página del transportista
+                    </small>
+                </div>
+                {% endif %}
+                
+                {% if pedido.estado_pedido == 'enviado' and pedido.fecha_estimada_entrega %}
+                <div class="alert alert-success">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-calendar-check"></i> Fecha estimada de entrega
+                    </h6>
+                    <p class="mb-0">
+                        {{ pedido.fecha_estimada_entrega.strftime('%d/%m/%Y') }}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para cancelar pedido -->
+<div class="modal fade" id="cancelarPedidoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Solicitar Cancelación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <strong>¡Atención!</strong><br>
+                    Esta acción solicitará la cancelación de tu pedido. 
+                    Una vez confirmada, el pedido no podrá ser reactivado.
+                </div>
+                
+                <p>¿Estás seguro de que quieres solicitar la cancelación del pedido <strong>#<span id="pedidoCancelarId"></span></strong>?</p>
+                
+                <div class="mb-3">
+                    <label for="razonCancelacion" class="form-label">Motivo de cancelación</label>
+                    <select class="form-select" id="razonCancelacion">
+                        <option value="" selected disabled>Selecciona un motivo</option>
+                        <option value="cambio_direccion">Cambio de dirección</option>
+                        <option value="producto_incorrecto">Producto incorrecto</option>
+                        <option value="encontrar_mejor_precio">Encontré mejor precio</option>
+                        <option value="arrepentimiento_compra">Me arrepentí de la compra</option>
+                        <option value="otro">Otro motivo</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="otroMotivoContainer" style="display: none;">
+                    <label for="otroMotivo" class="form-label">Especifica el motivo</label>
+                    <textarea class="form-control" id="otroMotivo" rows="2" placeholder="Describe el motivo de la cancelación"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, mantener pedido</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarCancelacion()">
+                    <i class="fas fa-times"></i> Sí, solicitar cancelación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de factura -->
+<div class="modal fade" id="facturaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-invoice"></i> Factura del Pedido #<span id="pedidoFacturaId"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="facturaContenido">
+                <!-- Contenido de la factura generado por JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success" onclick="imprimirFactura()">
+                    <i class="fas fa-print"></i> Imprimir factura
+                </button>
+                <button type="button" class="btn btn-primary" onclick="descargarPDF()">
+                    <i class="fas fa-download"></i> Descargar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+        margin: 20px 0;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -30px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #e9ecef;
+        border: 3px solid #dee2e6;
+    }
+    
+    .timeline-item.active .timeline-marker {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .timeline-content {
+        padding-left: 10px;
+    }
+    
+    .timeline-content h6 {
+        margin-bottom: 5px;
+        color: #495057;
+    }
+    
+    .timeline-content small {
+        color: #6c757d;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: -21px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #dee2e6;
+    }
+    
+    .timeline-item.active .timeline-content h6 {
+        color: #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Mostrar modal para cancelar pedido
+function mostrarCancelarPedido(pedidoId) {
+    document.getElementById('pedidoCancelarId').textContent = pedidoId;
+    const modal = new bootstrap.Modal(document.getElementById('cancelarPedidoModal'));
+    modal.show();
+}
+
+// Manejar selección de motivo de cancelación
+document.getElementById('razonCancelacion').addEventListener('change', function() {
+    const otroMotivoContainer = document.getElementById('otroMotivoContainer');
+    if (this.value === 'otro') {
+        otroMotivoContainer.style.display = 'block';
+    } else {
+        otroMotivoContainer.style.display = 'none';
+    }
+});
+
+// Confirmar cancelación
+function confirmarCancelacion() {
+    const pedidoId = document.getElementById('pedidoCancelarId').textContent;
+    const razon = document.getElementById('razonCancelacion').value;
+    const otroMotivo = document.getElementById('otroMotivo').value;
+    
+    if (!razon) {
+        alert('Por favor selecciona un motivo de cancelación');
+        return;
+    }
+    
+    if (razon === 'otro' && !otroMotivo.trim()) {
+        alert('Por favor especifica el motivo de cancelación');
+        return;
+    }
+    
+    // En una implementación real, aquí harías una llamada AJAX
+    fetch(`/tienda/pedidos/${pedidoId}/cancelar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            razon: razon,
+            otro_motivo: razon === 'otro' ? otroMotivo : null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Solicitud enviada!',
+                text: 'Tu solicitud de cancelación ha sido enviada. Te contactaremos pronto.',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'No se pudo procesar la solicitud'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo conectar con el servidor'
+        });
+    });
+}
+
+// Descargar factura
+function descargarFactura(pedidoId) {
+    document.getElementById('pedidoFacturaId').textContent = pedidoId;
+    
+    // Generar contenido de la factura
+    const facturaHTML = `
+        <div class="factura">
+            <div class="text-center mb-4">
+                <h3 class="text-success">Vivero Digital</h3>
+                <p class="mb-1">Calle Principal 123, Ciudad</p>
+                <p class="mb-1">Tel: (123) 456-7890 | Email: info@viverodigital.com</p>
+                <p class="mb-1">RUC: 1234567890123</p>
+            </div>
+            
+            <hr>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Factura #${pedidoId}</h5>
+                    <p class="mb-1"><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p class="mb-1"><strong>Cliente:</strong> {{ current_user.nombre }}</p>
+                    <p class="mb-1"><strong>Email:</strong> {{ current_user.correo }}</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h5>Estado: PAGADO</h5>
+                    <p class="mb-1"><strong>Método de pago:</strong> Simulado</p>
+                    <p class="mb-1"><strong>Número de pedido:</strong> #${pedidoId}</p>
+                </div>
+            </div>
+            
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in pedido.detalles %}
+                    <tr>
+                        <td>{{ detalle.planta.nombre if detalle.planta else 'Planta no disponible' }}</td>
+                        <td>${{ "%.2f"|format(detalle.precio_en_compra) }}</td>
+                        <td>{{ detalle.cantidad }}</td>
+                        <td>${{ "%.2f"|format(detalle.cantidad * detalle.precio_en_compra) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                        <td>${{ "%.2f"|format(pedido.costo_total) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="text-end"><strong>IVA (12%):</strong></td>
+                        <td>${{ "%.2f"|format(pedido.costo_total * 0.12) }}</td>
+                    </tr>
+                    <tr class="table-active">
+                        <td colspan="3" class="text-end"><h5 class="mb-0">Total:</h5></td>
+                        <td><h5 class="mb-0">${{ "%.2f"|format(pedido.costo_total * 1.12) }}</h5></td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div class="mt-4">
+                <p class="text-muted">
+                    <strong>Nota:</strong> Esta es una factura de prueba para demostración.
+                    Los datos mostrados son ficticios.
+                </p>
+                <div class="text-center mt-4">
+                    <p class="mb-0">¡Gracias por tu compra!</p>
+                    <p>Vivero Digital - Tu tienda de confianza</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('facturaContenido').innerHTML = facturaHTML;
+    const modal = new bootstrap.Modal(document.getElementById('facturaModal'));
+    modal.show();
+}
+
+// Imprimir factura
+function imprimirFactura() {
+    const facturaContenido = document.getElementById('facturaContenido').innerHTML;
+    const ventana = window.open('', '_blank');
+    ventana.document.write(`
+        <html>
+        <head>
+            <title>Factura Pedido #${document.getElementById('pedidoFacturaId').textContent}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { padding: 20px; }
+                @media print {
+                    .no-print { display: none; }
+                    body { padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            ${facturaContenido}
+            <div class="no-print text-center mt-3">
+                <button onclick="window.print()" class="btn btn-primary">Imprimir</button>
+                <button onclick="window.close()" class="btn btn-secondary">Cerrar</button>
+            </div>
+        </body>
+        </html>
+    `);
+    ventana.document.close();
+}
+
+// Descargar PDF (simulado)
+function descargarPDF() {
+    Swal.fire({
+        title: 'Descargando factura',
+        text: 'La factura se está generando en formato PDF...',
+        timer: 1500,
+        timerProgressBar: true,
+        showConfirmButton: false
+    }).then(() => {
+        // En una implementación real, aquí generas el PDF
+        Swal.fire({
+            icon: 'success',
+            title: '¡Listo!',
+            text: 'La factura está lista para descargar',
+            showConfirmButton: false,
+            timer: 1000
+        });
+        
+        // Simular descarga
+        const link = document.createElement('a');
+        link.href = '#'; // URL real del PDF
+        link.download = `factura_pedido_${document.getElementById('pedidoFacturaId').textContent}.pdf`;
+        link.click();
+    });
+}
+
+// Volver a comprar
+function volverAComprar(pedidoId) {
+    // En una implementación real, aquí recuperarías los productos del pedido
+    // y los agregarías al carrito
+    Swal.fire({
+        title: '¿Volver a comprar?',
+        text: 'Los productos de este pedido serán agregados a tu carrito',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, agregar al carrito',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/tienda/pedidos/${pedidoId}/recomprar`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Productos agregados!',
+                        text: 'Los productos han sido agregados a tu carrito',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = '/tienda/carrito';
+                    });
+                }
+            });
+        }
+    });
+}
+
+// Contactar soporte
+function contactarSoporte(pedidoId) {
+    window.location.href = `/tienda/contacto?pedido=${pedidoId}`;
+}
+
+// Copiar número de seguimiento
+function copiarNumeroSeguimiento(pedidoId) {
+    const input = document.getElementById(`trackingNumber${pedidoId}`);
+    input.select();
+    input.setSelectionRange(0, 99999); // Para dispositivos móviles
+    navigator.clipboard.writeText(input.value);
+    
+    // Mostrar mensaje de confirmación
+    const originalText = event.target.innerHTML;
+    event.target.innerHTML = '<i class="fas fa-check"></i>';
+    event.target.classList.remove('btn-outline-primary');
+    event.target.classList.add('btn-success');
+    
+    setTimeout(() => {
+        event.target.innerHTML = originalText;
+        event.target.classList.remove('btn-success');
+        event.target.classList.add('btn-outline-primary');
+    }, 2000);
+}
+
+// Cargar SweetAlert si no está cargado
+if (typeof Swal === 'undefined') {
+    const swalScript = document.createElement('script');
+    swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+    document.head.appendChild(swalScript);
+}
+</script>
+{% endblock %}
+{% endblock %}
