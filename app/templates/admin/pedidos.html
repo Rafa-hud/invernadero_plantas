@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Pedidos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        transition: all 0.3s;
+        border-left: 4px solid;
+    }
+    
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .order-pendiente { border-left-color: #ffc107; }
+    .order-procesando { border-left-color: #0dcaf0; }
+    .order-enviado { border-left-color: #0d6efd; }
+    .order-completado { border-left-color: #198754; }
+    .order-cancelado { border-left-color: #dc3545; }
+    
+    .status-badge {
+        font-size: 0.8em;
+        padding: 0.4em 0.8em;
+    }
+    
+    .order-products {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-shopping-cart text-primary"></i> Gestión de Pedidos
+                    </h1>
+                    <p class="text-muted">Administra y gestiona los pedidos de la tienda</p>
+                </div>
+                 
+                <div>
+                    <!--
+                    <a href="{{ url_for('main.estadisticas_tienda') }}" class="btn btn-outline-info me-2">
+                        <i class="fas fa-chart-pie"></i> Estadísticas
+                    </a>-->
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Total Ventas</h6>
+                            <h3 class="mb-0">${{ "%.2f"|format(pedidos|sum(attribute='costo_total')) }}</h3>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Pedidos Completados</h6>
+                            <h3 class="mb-0">{{ pedidos|selectattr('estado_pedido', 'equalto', 'completado')|list|length }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Pedidos Pendientes</h6>
+                            <h3 class="mb-0">{{ pedidos|selectattr('estado_pedido', 'equalto', 'pendiente')|list|length }}</h3>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Pedidos Cancelados</h6>
+                            <h3 class="mb-0">{{ pedidos|selectattr('estado_pedido', 'equalto', 'cancelado')|list|length }}</h3>
+                        </div>
+                        <i class="fas fa-times-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Filtrar por estado:</label>
+                            <select class="form-select" id="filterStatus" onchange="filtrarPedidos()">
+                                <option value="todos" {% if estado == 'todos' %}selected{% endif %}>Todos los estados</option>
+                                <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
+                                <option value="procesando" {% if estado == 'procesando' %}selected{% endif %}>Procesando</option>
+                                <option value="enviado" {% if estado == 'enviado' %}selected{% endif %}>Enviados</option>
+                                <option value="completado" {% if estado == 'completado' %}selected{% endif %}>Completados</option>
+                                <option value="cancelado" {% if estado == 'cancelado' %}selected{% endif %}>Cancelados</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Ordenar por:</label>
+                            <select class="form-select" id="sortOrder" onchange="ordenarPedidos()">
+                                <option value="fecha_desc">Fecha (Más recientes)</option>
+                                <option value="fecha_asc">Fecha (Más antiguos)</option>
+                                <option value="total_desc">Total (Mayor a menor)</option>
+                                <option value="total_asc">Total (Menor a mayor)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Buscar:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="ID, cliente, producto..." 
+                                       id="searchInput" onkeyup="buscarPedidos()">
+                                <button class="btn btn-outline-secondary" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3 d-flex align-items-end">
+                            <button class="btn btn-secondary w-100" onclick="resetFilters()">
+                                <i class="fas fa-redo"></i> Restablecer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Pedidos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Lista de Pedidos
+                        <span class="badge bg-primary ms-2" id="pedidosCount">{{ pedidos|length }}</span>
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportarPedidos()">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if pedidos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="pedidosTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th>Productos</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pedido in pedidos %}
+                                <tr class="order-card order-{{ pedido.estado_pedido }}">
+                                    <td>
+                                        <strong>#{{ pedido.id_pedido }}</strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ pedido.cliente.nombre }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ pedido.cliente.correo }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ pedido.fecha_orden.strftime('%d/%m/%Y') }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ pedido.fecha_orden.strftime('%H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="order-products">
+                                            {% for detalle in pedido.detalles %}
+                                            <div class="d-flex align-items-center mb-1">
+                                                <i class="fas fa-leaf text-success me-2"></i>
+                                                <div>
+                                                    <small>{{ detalle.planta.nombre }}</small>
+                                                    <br>
+                                                    <small class="text-muted">{{ detalle.cantidad }} x ${{ "%.2f"|format(detalle.precio_en_compra) }}</small>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-dark fs-6">
+                                            ${{ "%.2f"|format(pedido.costo_total) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm status-select" 
+                                                data-pedido-id="{{ pedido.id_pedido }}" 
+                                                onchange="actualizarEstado(this)">
+                                            <option value="pendiente" {% if pedido.estado_pedido == 'pendiente' %}selected{% endif %}>
+                                                Pendiente
+                                            </option>
+                                            <option value="procesando" {% if pedido.estado_pedido == 'procesando' %}selected{% endif %}>
+                                                Procesando
+                                            </option>
+                                            <option value="enviado" {% if pedido.estado_pedido == 'enviado' %}selected{% endif %}>
+                                                Enviado
+                                            </option>
+                                            <option value="completado" {% if pedido.estado_pedido == 'completado' %}selected{% endif %}>
+                                                Completado
+                                            </option>
+                                            <option value="cancelado" {% if pedido.estado_pedido == 'cancelado' %}selected{% endif %}>
+                                                Cancelado
+                                            </option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('main.admin_ver_pedido', id=pedido.id_pedido) }}" 
+                                               class="btn btn-outline-primary" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    onclick="enviarEmailCliente({{ pedido.id_pedido }})"
+                                                    title="Enviar email">
+                                                <i class="fas fa-envelope"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" 
+                                                    onclick="generarFactura({{ pedido.id_pedido }})"
+                                                    title="Generar factura">
+                                                <i class="fas fa-file-invoice"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-shopping-cart fa-4x text-muted opacity-25 mb-4"></i>
+                        <h5 class="text-muted">No hay pedidos</h5>
+                        <p class="text-muted">No se encontraron pedidos con los filtros seleccionados</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para actualizar estado del pedido
+function actualizarEstado(select) {
+    const pedidoId = select.getAttribute('data-pedido-id');
+    const nuevoEstado = select.value;
+    
+    Swal.fire({
+        title: '¿Actualizar estado?',
+        html: `¿Cambiar estado del pedido #${pedidoId} a <strong>${nuevoEstado}</strong>?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, actualizar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('{{ url_for("main.actualizar_estado_pedido", id=0) }}'.replace('0', pedidoId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({estado: nuevoEstado})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Actualizado!',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Actualizar clase de la fila
+                    const row = select.closest('tr');
+                    row.className = `order-card order-${nuevoEstado}`;
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Error al actualizar',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Revertir selección
+                    const currentStatus = row.className.replace('order-card order-', '');
+                    select.value = currentStatus;
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'No se pudo actualizar el estado',
+                    confirmButtonText: 'OK'
+                });
+            });
+        } else {
+            // Revertir selección si se cancela
+            const row = select.closest('tr');
+            const currentStatus = row.className.replace('order-card order-', '');
+            select.value = currentStatus;
+        }
+    });
+}
+
+// Función para filtrar pedidos por estado
+function filtrarPedidos() {
+    const estado = document.getElementById('filterStatus').value;
+    if (estado === 'todos') {
+        window.location.href = '{{ url_for("main.admin_pedidos") }}';
+    } else {
+        window.location.href = `{{ url_for("main.admin_pedidos") }}?estado=${estado}`;
+    }
+}
+
+// Función para buscar pedidos
+function buscarPedidos() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#pedidosTable tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(input)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('pedidosCount').textContent = visibleCount;
+}
+
+// Función para ordenar pedidos
+function ordenarPedidos() {
+    const sortBy = document.getElementById('sortOrder').value;
+    
+    Swal.fire({
+        title: 'Ordenando...',
+        text: 'Por favor espera',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // En una implementación real, esto haría una petición al servidor
+    // Por ahora solo mostramos un mensaje
+    setTimeout(() => {
+        Swal.close();
+        Swal.fire({
+            icon: 'info',
+            title: 'Función en desarrollo',
+            text: 'La ordenación se implementará en la próxima versión',
+            confirmButtonText: 'OK'
+        });
+    }, 1000);
+}
+
+// Función para resetear filtros
+function resetFilters() {
+    document.getElementById('filterStatus').value = 'todos';
+    document.getElementById('sortOrder').value = 'fecha_desc';
+    document.getElementById('searchInput').value = '';
+    
+    // Mostrar todas las filas
+    const rows = document.querySelectorAll('#pedidosTable tbody tr');
+    rows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    document.getElementById('pedidosCount').textContent = rows.length;
+}
+
+// Función para exportar pedidos
+function exportarPedidos() {
+    Swal.fire({
+        title: 'Exportar pedidos',
+        text: 'Selecciona el formato de exportación:',
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Excel (.xlsx)',
+        denyButtonText: 'PDF (.pdf)',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Exportando a Excel...',
+                text: 'Esta función se implementará próximamente',
+                confirmButtonText: 'OK'
+            });
+        } else if (result.isDenied) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Exportando a PDF...',
+                text: 'Esta función se implementará próximamente',
+                confirmButtonText: 'OK'
+            });
+        }
+    });
+}
+
+// Función para enviar email al cliente
+function enviarEmailCliente(pedidoId) {
+    Swal.fire({
+        title: 'Enviar email al cliente',
+        input: 'textarea',
+        inputLabel: 'Mensaje',
+        inputPlaceholder: 'Escribe el mensaje para el cliente...',
+        inputAttributes: {
+            'rows': 4
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Enviar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Email enviado!',
+                text: 'El mensaje ha sido enviado al cliente',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+}
+
+// Función para generar factura
+function generarFactura(pedidoId) {
+    Swal.fire({
+        title: 'Generar factura',
+        html: `¿Generar factura para el pedido #${pedidoId}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Generar PDF',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Generando factura...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Simular generación de factura
+            setTimeout(() => {
+                Swal.close();
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Factura generada!',
+                    html: `Factura del pedido #${pedidoId} generada correctamente.<br>
+                           <a href="#" class="btn btn-success mt-3">
+                               <i class="fas fa-download"></i> Descargar PDF
+                           </a>`,
+                    showConfirmButton: false
+                });
+            }, 1500);
+        }
+    });
+}
+</script>
+{% endblock %}

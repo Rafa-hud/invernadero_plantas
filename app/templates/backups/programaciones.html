@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Programación de Respaldos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-clock text-primary"></i> Programación de Respaldos
+                    </h1>
+                    <p class="text-muted">Configura respaldos automáticos para tu base de datos.</p>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('backup.listar_respaldos') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver a Respaldos
+                    </a>
+                    <a href="{{ url_for('backup.crear_programacion') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nueva Programación
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <div class="h1 text-primary mb-1">{{ programaciones|length }}</div>
+                    <small class="text-muted">Programaciones totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <div class="h1 text-success mb-1">{{ programaciones|selectattr('activo')|list|length }}</div>
+                    <small class="text-muted">Activas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    {% set completos = programaciones|selectattr('tipo_respaldo', 'equalto', 'completo')|list|length %}
+                    <div class="h1 text-info mb-1">{{ completos }}</div>
+                    <small class="text-muted">Completos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    {% set diferenciales = programaciones|selectattr('tipo_respaldo', 'equalto', 'diferencial')|list|length %}
+                    <div class="h1 text-warning mb-1">{{ diferenciales }}</div>
+                    <small class="text-muted">Diferenciales</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de programaciones -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list text-primary"></i> Programaciones Configuradas
+                    </h5>
+                    <span class="badge bg-primary">
+                        <i class="fas fa-clock"></i> {{ programaciones|length }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    {% if programaciones %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-cog"></i> Configuración</th>
+                                    <th><i class="fas fa-sync-alt"></i> Frecuencia</th>
+                                    <th><i class="fas fa-calendar"></i> Próxima Ejecución</th>
+                                    <th><i class="fas fa-hdd"></i> Almacenamiento</th>
+                                    <th><i class="fas fa-bolt"></i> Estado</th>
+                                    <th><i class="fas fa-cogs"></i> Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prog in programaciones %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>#{{ prog.id }} - {{ prog.tipo_respaldo|title }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="far fa-clock"></i> {{ prog.hora_ejecucion.strftime('%H:%M') }}
+                                                <br>
+                                                <i class="far fa-user"></i> {{ prog.usuario_creador }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if prog.frecuencia == 'diario' %}bg-primary
+                                            {% elif prog.frecuencia == 'semanal' %}bg-info
+                                            {% else %}bg-warning{% endif %}">
+                                            {% if prog.frecuencia == 'diario' %}
+                                            <i class="fas fa-calendar-day"></i> Diario
+                                            {% elif prog.frecuencia == 'semanal' %}
+                                            <i class="fas fa-calendar-week"></i> Semanal
+                                            {% else %}
+                                            <i class="fas fa-calendar-alt"></i> Mensual
+                                            {% endif %}
+                                        </span>
+                                        {% if prog.frecuencia == 'semanal' and prog.dias_semana %}
+                                        <br>
+                                        <small class="text-muted">
+                                            {% set dias = prog.dias_semana.split(',') %}
+                                            {% set dias_nombres = [] %}
+                                            {% for d in dias %}
+                                                {% if d == '0' %}
+                                                    {% set _ = dias_nombres.append('Dom') %}
+                                                {% elif d == '1' %}
+                                                    {% set _ = dias_nombres.append('Lun') %}
+                                                {% elif d == '2' %}
+                                                    {% set _ = dias_nombres.append('Mar') %}
+                                                {% elif d == '3' %}
+                                                    {% set _ = dias_nombres.append('Mié') %}
+                                                {% elif d == '4' %}
+                                                    {% set _ = dias_nombres.append('Jue') %}
+                                                {% elif d == '5' %}
+                                                    {% set _ = dias_nombres.append('Vie') %}
+                                                {% elif d == '6' %}
+                                                    {% set _ = dias_nombres.append('Sáb') %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ dias_nombres|join(', ') }}
+                                        </small>
+                                        {% elif prog.frecuencia == 'mensual' and prog.dia_mes %}
+                                        <br>
+                                        <small class="text-muted">Día {{ prog.dia_mes }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if prog.activo and prog.proxima_ejecucion %}
+                                        <div>
+                                            <strong>{{ prog.proxima_ejecucion.strftime('%d/%m/%Y') }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ prog.proxima_ejecucion.strftime('%H:%M') }}</small>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">No programado</span>
+                                        {% endif %}
+                                        {% if prog.ultima_ejecucion %}
+                                        <br>
+                                        <small class="text-muted">
+                                            Última: {{ prog.ultima_ejecucion.strftime('%d/%m %H:%M') }}
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if prog.almacenamiento == 'usb' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-usb-drive"></i> USB
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-server"></i> Local
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if prog.activo %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle"></i> Activa
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times-circle"></i> Inactiva
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <!-- Ejecutar ahora -->
+                                            <button type="button" 
+                                                    class="btn btn-outline-success ejecutar-ahora-btn"
+                                                    data-id="{{ prog.id }}"
+                                                    title="Ejecutar ahora">
+                                                <i class="fas fa-bolt"></i>
+                                            </button>
+                                            
+                                            <!-- Activar/Desactivar -->
+                                            <button type="button" 
+                                                    class="btn {% if prog.activo %}btn-outline-warning{% else %}btn-outline-success{% endif %} toggle-programacion-btn"
+                                                    data-id="{{ prog.id }}"
+                                                    data-activo="{{ prog.activo|tojson|safe }}"
+                                                    title="{% if prog.activo %}Desactivar{% else %}Activar{% endif %}">
+                                                <i class="fas fa-power-off"></i>
+                                            </button>
+                                            
+                                            <!-- Editar -->
+                                            <a href="{{ url_for('backup.editar_programacion', id=prog.id) }}"
+                                               class="btn btn-outline-primary"
+                                               title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            
+                                            <!-- Eliminar -->
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger eliminar-programacion-btn"
+                                                    data-id="{{ prog.id }}"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="mb-4">
+                            <i class="fas fa-clock fa-4x text-muted opacity-25"></i>
+                        </div>
+                        <h5 class="text-muted mb-3">No hay programaciones configuradas</h5>
+                        <p class="text-muted mb-4">Configura respaldos automáticos para proteger tus datos.</p>
+                        <a href="{{ url_for('backup.crear_programacion') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i> Crear primera programación
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-trash"></i> Eliminar Programación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar esta programación?</p>
+                                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteProgramacionForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 10px;
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.badge {
+    font-weight: 500;
+}
+.btn-group .btn {
+    border-radius: 4px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle activar/desactivar
+    document.querySelectorAll('.toggle-programacion-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const programacionId = this.getAttribute('data-id');
+            const activo = this.getAttribute('data-activo') === 'true';
+            
+            if (activo) {
+                if (!confirm('¿Desactivar esta programación? Los respaldos automáticos dejarán de ejecutarse.')) {
+                    return;
+                }
+            } else {
+                if (!confirm('¿Activar esta programación? Los respaldos automáticos comenzarán a ejecutarse según la programación.')) {
+                    return;
+                }
+            }
+            
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            fetch(`/respaldos/programaciones/${programacionId}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar estado');
+                this.innerHTML = originalHTML;
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // Ejecutar ahora
+    document.querySelectorAll('.ejecutar-ahora-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const programacionId = this.getAttribute('data-id');
+            
+            if (!confirm('¿Ejecutar esta programación ahora? Se creará un respaldo inmediatamente.')) {
+                return;
+            }
+            
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            fetch(`/respaldos/programaciones/${programacionId}/ejecutar-ahora`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al ejecutar la programación');
+                this.innerHTML = originalHTML;
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // Eliminar programación
+    document.querySelectorAll('.eliminar-programacion-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const programacionId = this.getAttribute('data-id');
+            
+            if (!confirm('¿Eliminar esta programación? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            fetch(`/respaldos/programaciones/${programacionId}/eliminar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Error al eliminar la programación');
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar la programación');
+                this.innerHTML = originalHTML;
+                this.disabled = false;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

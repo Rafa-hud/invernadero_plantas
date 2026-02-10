@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Pedido #{{ pedido.id_pedido }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-receipt text-primary"></i> Pedido #{{ pedido.id_pedido }}
+                        <span class="badge fs-6 ms-2 
+                            {% if pedido.estado_pedido == 'pendiente' %}bg-warning
+                            {% elif pedido.estado_pedido == 'procesando' %}bg-info
+                            {% elif pedido.estado_pedido == 'enviado' %}bg-primary
+                            {% elif pedido.estado_pedido == 'completado' %}bg-success
+                            {% elif pedido.estado_pedido == 'cancelado' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ pedido.estado_pedido|upper }}
+                        </span>
+                    </h1>
+                    <p class="text-muted">
+                        <i class="fas fa-calendar me-1"></i>
+                        {{ pedido.fecha_orden.strftime('%d/%m/%Y %H:%M') }}
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <a href="{{ url_for('main.admin_pedidos') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Volver a Pedidos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información del Pedido -->
+        <div class="col-lg-8 mb-4">
+            <!-- Detalles del Cliente -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user"></i> Información del Cliente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h6>Datos del Cliente</h6>
+                            <p class="mb-1">
+                                <strong>Nombre:</strong> {{ pedido.cliente.nombre }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Correo:</strong> 
+                                <a href="mailto:{{ pedido.cliente.correo }}">{{ pedido.cliente.correo }}</a>
+                            </p>
+                            <p class="mb-1">
+                                <strong>Teléfono:</strong> 
+                                {{ pedido.cliente.telefono or 'No registrado' }}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6>Datos del Pedido</h6>
+                            <p class="mb-1">
+                                <strong>ID Pedido:</strong> #{{ pedido.id_pedido }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Fecha:</strong> {{ pedido.fecha_orden.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Estado:</strong> 
+                                <span class="badge 
+                                    {% if pedido.estado_pedido == 'pendiente' %}bg-warning
+                                    {% elif pedido.estado_pedido == 'procesando' %}bg-info
+                                    {% elif pedido.estado_pedido == 'enviado' %}bg-primary
+                                    {% elif pedido.estado_pedido == 'completado' %}bg-success
+                                    {% elif pedido.estado_pedido == 'cancelado' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ pedido.estado_pedido|title }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if pedido.cliente.direccion %}
+                    <div class="mt-3">
+                        <h6>Dirección de Envío</h6>
+                        <p class="mb-0">{{ pedido.cliente.direccion }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Productos del Pedido -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-boxes"></i> Productos del Pedido
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unitario</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in plantas_info %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.imagen_url %}
+                                            <img src="{{ item.imagen_url }}" alt="{{ item.nombre }}" 
+                                                 class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="rounded bg-light d-flex align-items-center justify-content-center me-3" 
+                                                 style="width: 50px; height: 50px;">
+                                                <i class="fas fa-leaf text-success"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ item.nombre }}</strong>
+                                                {% if item.categoria %}
+                                                <br>
+                                                <small class="text-muted">{{ item.categoria }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.cantidad }}</td>
+                                    <td>${{ "%.2f"|format(item.precio_unitario) }}</td>
+                                    <td>${{ "%.2f"|format(item.total_item) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Control -->
+        <div class="col-lg-4 mb-4">
+            <!-- Resumen Financiero -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calculator"></i> Resumen Financiero
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td>Subtotal:</td>
+                            <td class="text-end">${{ "%.2f"|format(total_pedido / 1.12) }}</td>
+                        </tr>
+                        <tr>
+                            <td>IVA (12%):</td>
+                            <td class="text-end">${{ "%.2f"|format(total_pedido * 0.12 / 1.12) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Envío:</td>
+                            <td class="text-end">
+                                {% if total_pedido >= 50 %}
+                                $0.00 <small class="text-muted">(Envío gratis)</small>
+                                {% else %}
+                                $5.99
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="table-dark">
+                            <th>Total:</th>
+                            <th class="text-end">${{ "%.2f"|format(pedido.costo_total) }}</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gestión del Pedido -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> Gestión del Pedido
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Cambiar Estado</h6>
+                    <div class="btn-group-vertical w-100 mb-3" role="group">
+                        <button type="button" class="btn btn-{% if pedido.estado_pedido == 'pendiente' %}warning{% else %}outline-warning{% endif %} mb-2" 
+                                onclick="actualizarEstado('pendiente')">
+                            <i class="fas fa-clock"></i> Pendiente
+                        </button>
+                        <button type="button" class="btn btn-{% if pedido.estado_pedido == 'procesando' %}info{% else %}outline-info{% endif %} mb-2" 
+                                onclick="actualizarEstado('procesando')">
+                            <i class="fas fa-cog"></i> Procesando
+                        </button>
+                        <button type="button" class="btn btn-{% if pedido.estado_pedido == 'enviado' %}primary{% else %}outline-primary{% endif %} mb-2" 
+                                onclick="actualizarEstado('enviado')">
+                            <i class="fas fa-truck"></i> Enviado
+                        </button>
+                        <button type="button" class="btn btn-{% if pedido.estado_pedido == 'completado' %}success{% else %}outline-success{% endif %} mb-2" 
+                                onclick="actualizarEstado('completado')">
+                            <i class="fas fa-check-circle"></i> Completado
+                        </button>
+                        <button type="button" class="btn btn-{% if pedido.estado_pedido == 'cancelado' %}danger{% else %}outline-danger{% endif %}" 
+                                onclick="actualizarEstado('cancelado')">
+                            <i class="fas fa-times-circle"></i> Cancelar
+                        </button>
+                    </div>
+
+                    <h6 class="mt-4">Acciones Rápidas</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="enviarEmailCliente()">
+                            <i class="fas fa-envelope"></i> Enviar Email al Cliente
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="generarFactura()">
+                            <i class="fas fa-file-invoice"></i> Generar Factura
+                        </button>
+                        <a href="mailto:{{ pedido.cliente.correo }}?subject=Pedido%20%23{{ pedido.id_pedido }}" 
+                           class="btn btn-outline-info">
+                            <i class="fas fa-comment"></i> Contactar Cliente
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información de Envío -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shipping-fast"></i> Información de Envío
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pedido.estado_pedido == 'enviado' %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Pedido enviado</strong>
+                        {% if pedido.fecha_envio %}
+                        <p class="mb-0 mt-2">
+                            Fecha de envío: {{ pedido.fecha_envio.strftime('%d/%m/%Y') }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% elif pedido.estado_pedido == 'completado' %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-double"></i>
+                        <strong>Pedido completado</strong>
+                        {% if pedido.fecha_completado %}
+                        <p class="mb-0 mt-2">
+                            Fecha de entrega: {{ pedido.fecha_completado.strftime('%d/%m/%Y') }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock"></i>
+                        <strong>En preparación</strong>
+                        <p class="mb-0 mt-2">
+                            El pedido está siendo preparado para su envío.
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <h6>Dirección de Entrega</h6>
+                        <p class="mb-0">
+                            {% if pedido.cliente.direccion %}
+                            {{ pedido.cliente.direccion }}
+                            {% else %}
+                            <span class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Dirección no registrada
+                            </span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notas del Pedido -->
+    {% if pedido.notas %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sticky-note"></i> Notas del Pedido
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ pedido.notas }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Función para actualizar estado del pedido
+function actualizarEstado(nuevoEstado) {
+    if(!confirm(`¿Cambiar estado del pedido a "${nuevoEstado}"?`)) {
+        return;
+    }
+    
+    Swal.fire({
+        title: 'Actualizando estado...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{{ url_for("main.actualizar_estado_pedido", id=pedido.id_pedido) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({estado: nuevoEstado})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Actualizado!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Error al actualizar el estado',
+                confirmButtonText: 'OK'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error de conexión',
+            text: 'No se pudo actualizar el estado',
+            confirmButtonText: 'OK'
+        });
+    });
+}
+
+// Función para enviar email al cliente
+function enviarEmailCliente() {
+    Swal.fire({
+        title: 'Enviar email al cliente',
+        input: 'textarea',
+        inputLabel: 'Mensaje',
+        inputPlaceholder: 'Escribe el mensaje para el cliente...',
+        inputAttributes: {
+            'rows': 4
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Enviar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Email enviado!',
+                text: 'El mensaje ha sido enviado al cliente',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+}
+
+// Función para generar factura
+function generarFactura() {
+    Swal.fire({
+        title: 'Generar factura',
+        html: `¿Generar factura para el pedido #{{ pedido.id_pedido }}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Generar PDF',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Generando factura...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            setTimeout(() => {
+                Swal.close();
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Factura generada!',
+                    html: `Factura del pedido #{{ pedido.id_pedido }} generada correctamente.<br>
+                           <button class="btn btn-success mt-3" onclick="descargarFactura()">
+                               <i class="fas fa-download"></i> Descargar PDF
+                           </button>`,
+                    showConfirmButton: false
+                });
+            }, 1500);
+        }
+    });
+}
+
+// Función para descargar factura
+function descargarFactura() {
+    Swal.fire({
+        icon: 'info',
+        title: 'Función en desarrollo',
+        text: 'La descarga de facturas se implementará próximamente',
+        confirmButtonText: 'OK'
+    });
+}
+</script>
+
+<style>
+@media print {
+    .btn, .card-header, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    
+    body {
+        font-size: 12pt;
+    }
+}
+</style>
+{% endblock %}

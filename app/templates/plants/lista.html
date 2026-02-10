@@ -6,6 +6,7 @@
 <div class="container mt-4">
     <h1 class="mb-4">
         <i class="fas fa-seedling text-success"></i> Mis Plantas
+        <span class="badge bg-success rounded-pill ms-2">{{ plantas|length }} plantas</span>
     </h1>
     
     <!-- Botones principales -->
@@ -25,110 +26,155 @@
     {% if plantas %}
     <div class="row">
         {% for planta in plantas %}
-        <div class="col-md-4 mb-4">
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
             <div class="card h-100 shadow-sm border-0">
-                <div class="card-body">
-                    <!-- Indicador si está en tienda -->
-                    {% if planta.disponible_venta %}
-                    <div class="position-absolute top-0 end-0 m-3">
-                        <span class="badge bg-info rounded-pill" title="Disponible en tienda">
-                            <i class="fas fa-store"></i> Tienda
+                <!-- Imagen de la planta -->
+                <div class="position-relative">
+                    <div class="card-img-top" style="height: 200px; overflow: hidden; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                        {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                            <img src="{{ planta.obtener_imagen() }}" 
+                                 class="img-fluid w-100 h-100 object-fit-cover" 
+                                 alt="{{ planta.nombre }}"
+                                 style="transition: transform 0.5s ease;"
+                                 onload="this.style.opacity='1'"
+                                 onerror="this.src='{{ url_for('static', filename='images/planta_default.png') }}'; this.onerror=null;">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted">
+                                <i class="fas fa-seedling fa-4x mb-3 opacity-50"></i>
+                                <small>Sin imagen</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Indicadores superpuestos -->
+                    <div class="position-absolute top-0 start-0 m-3">
+                        {% if planta.disponible_venta %}
+                        <span class="badge bg-info rounded-pill store-badge shadow-sm" title="Disponible en tienda">
+                            <i class="fas fa-store me-1"></i> Tienda
                         </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="position-absolute top-0 end-0 m-3">
+                        {% if planta.estado == 'activa' %}
+                            <span class="badge bg-success rounded-pill shadow-sm" title="Planta activa">
+                                <i class="fas fa-check-circle me-1"></i> Activa
+                            </span>
+                        {% elif planta.estado == 'enferma' %}
+                            <span class="badge bg-danger rounded-pill shadow-sm" title="Planta enferma">
+                                <i class="fas fa-heartbeat me-1"></i> Enferma
+                            </span>
+                        {% elif planta.estado == 'en_floracion' %}
+                            <span class="badge bg-pink rounded-pill shadow-sm" title="En floración">
+                                <i class="fas fa-spa me-1"></i> Floración
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Indicador de stock si está en tienda -->
+                    {% if planta.disponible_venta %}
+                    <div class="position-absolute bottom-0 end-0 m-3">
+                        {% if planta.stock > 0 %}
+                            <span class="badge bg-success rounded-pill shadow-sm" title="{{ planta.stock }} unidades disponibles">
+                                <i class="fas fa-box me-1"></i> {{ planta.stock }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger rounded-pill shadow-sm" title="Agotado">
+                                <i class="fas fa-times-circle me-1"></i> Agotado
+                            </span>
+                        {% endif %}
                     </div>
                     {% endif %}
-                    
-                    <h5 class="card-title text-success">
-                        <i class="fas fa-leaf"></i> {{ planta.nombre }}
+                </div>
+                
+                <div class="card-body">
+                    <!-- Nombre de la planta -->
+                    <h5 class="card-title text-truncate mb-1" title="{{ planta.nombre }}">
+                        <i class="fas fa-leaf text-success me-2"></i> {{ planta.nombre }}
                     </h5>
                     
-                    <div class="card-text">
-                        <div class="mb-2">
-                            <strong><i class="fas fa-dna text-success"></i> Especie:</strong> 
-                            <span class="ms-1">
-                                {{ planta.especie or 'No especificada' }}
-                            </span>
-                        </div>
-                        
-                        <!-- Precio si está en tienda -->
-                        {% if planta.disponible_venta and planta.precio %}
-                        <div class="mb-2">
-                            <strong><i class="fas fa-tag text-success"></i> Precio:</strong> 
-                            <span class="ms-1 text-success fw-bold">
-                                ${{ "%.2f"|format(planta.precio) }}
-                            </span>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Categoría si está en tienda -->
-                        {% if planta.disponible_venta and planta.categoria %}
-                        <div class="mb-2">
-                            <strong><i class="fas fa-tags text-success"></i> Categoría:</strong> 
-                            <span class="ms-1 badge bg-success">
-                                {{ planta.categoria|title }}
-                            </span>
-                        </div>
-                        {% endif %}
-                        
-                        <div class="mb-2">
-                            <strong><i class="fas fa-calendar-alt text-success"></i> Registro:</strong> 
-                            <span class="ms-1">
-                                {% if planta.fecha_registro %}
-                                    {{ planta.fecha_registro.strftime('%d/%m/%Y') }}
-                                {% else %}
-                                    No disponible
-                                {% endif %}
-                            </span>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <strong><i class="fas fa-circle text-success"></i> Estado:</strong> 
-                            <span class="ms-1">
-                                {% if planta.estado == 'activa' %}
-                                    <span class="badge bg-success rounded-pill">Activa</span>
-                                {% elif planta.estado == 'inactiva' %}
-                                    <span class="badge bg-secondary rounded-pill">Inactiva</span>
-                                {% else %}
-                                    <span class="badge bg-info rounded-pill">{{ planta.estado }}</span>
-                                {% endif %}
-                            </span>
-                        </div>
-                        
-                        <!-- Stock si está en tienda -->
-                        {% if planta.disponible_venta %}
-                        <div class="mb-3">
-                            <strong><i class="fas fa-box text-success"></i> Stock:</strong> 
-                            <span class="ms-1">
-                                {% if planta.stock > 0 %}
-                                    <span class="badge bg-success rounded-pill">{{ planta.stock }} unidades</span>
-                                {% else %}
-                                    <span class="badge bg-danger rounded-pill">Agotado</span>
-                                {% endif %}
-                            </span>
-                        </div>
+                    <!-- Especie -->
+                    {% if planta.especie %}
+                    <p class="card-text small text-muted mb-2">
+                        <i class="fas fa-dna me-1"></i> {{ planta.especie }}
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Precio si está en tienda -->
+                    {% if planta.disponible_venta and planta.precio > 0 %}
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="text-success fw-bold fs-5">
+                            ${{ "%.2f"|format(planta.precio) }}
+                        </span>
+                        {% if planta.categoria %}
+                        <span class="badge bg-light text-dark border ms-2">
+                            {{ planta.categoria }}
+                        </span>
                         {% endif %}
                     </div>
+                    {% else %}
+                        {% if planta.categoria %}
+                        <div class="mb-3">
+                            <span class="badge bg-light text-dark border">
+                                {{ planta.categoria }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <!-- Información adicional -->
+                    <div class="d-flex justify-content-between align-items-center text-muted small mb-3">
+                        <div>
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            {% if planta.fecha_registro %}
+                                {{ planta.fecha_registro.strftime('%d/%m/%y') }}
+                            {% endif %}
+                        </div>
+                        <div>
+                            <i class="fas fa-id-card me-1"></i> #{{ planta.id }}
+                        </div>
+                    </div>
+                    
+                    <!-- Descripción breve -->
+                    {% if planta.descripcion and planta.descripcion|length > 0 %}
+                    <div class="mb-3">
+                        <p class="card-text small text-muted mb-0" 
+                           style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            {{ planta.descripcion[:100] }}{% if planta.descripcion|length > 100 %}...{% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
                 </div>
+                
+                <!-- Botones de acción -->
                 <div class="card-footer bg-white border-top-0 pt-0">
+                    <!-- Botones principales -->
                     <div class="btn-group w-100 mb-2" role="group">
                         <!-- Botón Ver Detalles -->
                         <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" 
                            class="btn btn-sm btn-outline-primary rounded-start" 
-                           title="Ver detalles">
+                           title="Ver detalles"
+                           data-bs-toggle="tooltip">
                             <i class="fas fa-eye"></i>
+                            <span class="d-none d-md-inline ms-1">Ver</span>
                         </a>
                         
                         <!-- Botón Editar -->
                         <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
                            class="btn btn-sm btn-outline-secondary" 
-                           title="Editar">
+                           title="Editar"
+                           data-bs-toggle="tooltip">
                             <i class="fas fa-edit"></i>
+                            <span class="d-none d-md-inline ms-1">Editar</span>
                         </a>
                         
                         <!-- Botón Registrar Riego -->
                         <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta.id) }}"
                            class="btn btn-sm btn-outline-success" 
-                           title="Registrar riego">
+                           title="Registrar riego"
+                           data-bs-toggle="tooltip">
                             <i class="fas fa-tint"></i>
+                            <span class="d-none d-md-inline ms-1">Riego</span>
                         </a>
                         
                         <!-- Botón Eliminar con confirmación -->
@@ -136,8 +182,10 @@
                                 class="btn btn-sm btn-outline-danger rounded-end" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#deleteModal{{ planta.id }}"
-                                title="Eliminar">
+                                title="Eliminar"
+                                data-bs-toggle="tooltip">
                             <i class="fas fa-trash"></i>
+                            <span class="d-none d-md-inline ms-1">Eliminar</span>
                         </button>
                     </div>
                     
@@ -148,14 +196,16 @@
                                 class="btn btn-sm btn-outline-info" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#addToStoreModal{{ planta.id }}">
-                            <i class="fas fa-store"></i> Agregar a Tienda
+                            <i class="fas fa-store"></i> 
+                            <span class="ms-1">Agregar a Tienda</span>
                         </button>
                         {% else %}
                         <button type="button" 
                                 class="btn btn-sm btn-outline-warning" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#manageStoreModal{{ planta.id }}">
-                            <i class="fas fa-cog"></i> Gestionar en Tienda
+                            <i class="fas fa-cog"></i> 
+                            <span class="ms-1">Gestionar Tienda</span>
                         </button>
                         {% endif %}
                     </div>
@@ -169,11 +219,25 @@
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
                         <h5 class="modal-title">
-                            <i class="fas fa-store"></i> Agregar a Tienda
+                            <i class="fas fa-store"></i> Agregar a Tienda: {{ planta.nombre }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="text-center mb-4">
+                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{{ planta.obtener_imagen() }}" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 150px;"
+                                     alt="{{ planta.nombre }}">
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="fas fa-seedling fa-4x mb-3 opacity-50"></i>
+                                    <p class="small">Esta planta no tiene imagen</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
                         <form id="addToStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.agregar_a_tienda', id=planta.id) }}">
                             <input type="hidden" name="planta_id" value="{{ planta.id }}">
                             
@@ -185,7 +249,8 @@
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="precio{{ planta.id }}" 
                                            name="precio" min="0" step="0.01" required 
-                                           placeholder="Ej: 19.99">
+                                           placeholder="Ej: 19.99"
+                                           value="{{ planta.precio or '' }}">
                                 </div>
                                 <small class="text-muted">Precio en dólares</small>
                             </div>
@@ -196,7 +261,7 @@
                                 </label>
                                 <textarea class="form-control" id="descripcion{{ planta.id }}" 
                                           name="descripcion" rows="3" 
-                                          placeholder="Describe la planta para los clientes..."></textarea>
+                                          placeholder="Describe la planta para los clientes...">{{ planta.descripcion or '' }}</textarea>
                             </div>
                             
                             <div class="row mb-3">
@@ -206,7 +271,7 @@
                                     </label>
                                     <input type="number" class="form-control" id="stock{{ planta.id }}" 
                                            name="stock" min="1" required 
-                                           value="10">
+                                           value="{{ planta.stock or 10 }}">
                                 </div>
                                 
                                 <div class="col-md-6">
@@ -215,12 +280,14 @@
                                     </label>
                                     <select class="form-select" id="categoria{{ planta.id }}" name="categoria" required>
                                         <option value="">Seleccionar categoría</option>
-                                        <option value="interior">Interior</option>
-                                        <option value="exterior">Exterior</option>
-                                        <option value="suculenta">Suculenta</option>
-                                        <option value="aromática">Aromática</option>
-                                        <option value="frutal">Frutal</option>
-                                        <option value="ornamental">Ornamental</option>
+                                        <option value="Interior" {% if planta.categoria == 'Interior' %}selected{% endif %}>Interior</option>
+                                        <option value="Exterior" {% if planta.categoria == 'Exterior' %}selected{% endif %}>Exterior</option>
+                                        <option value="Suculentas" {% if planta.categoria == 'Suculentas' %}selected{% endif %}>Suculentas</option>
+                                        <option value="Cactus" {% if planta.categoria == 'Cactus' %}selected{% endif %}>Cactus</option>
+                                        <option value="Aromáticas" {% if planta.categoria == 'Aromáticas' %}selected{% endif %}>Aromáticas</option>
+                                        <option value="Medicinales" {% if planta.categoria == 'Medicinales' %}selected{% endif %}>Medicinales</option>
+                                        <option value="Frutales" {% if planta.categoria == 'Frutales' %}selected{% endif %}>Frutales</option>
+                                        <option value="Ornamentales" {% if planta.categoria == 'Ornamentales' %}selected{% endif %}>Ornamentales</option>
                                     </select>
                                 </div>
                             </div>
@@ -251,33 +318,51 @@
                 <div class="modal-content">
                     <div class="modal-header bg-warning text-white">
                         <h5 class="modal-title">
-                            <i class="fas fa-cog"></i> Gestionar en Tienda
+                            <i class="fas fa-cog"></i> Gestionar en Tienda: {{ planta.nombre }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="text-center mb-4">
+                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{{ planta.obtener_imagen() }}" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 150px;"
+                                     alt="{{ planta.nombre }}">
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="fas fa-seedling fa-4x mb-3 opacity-50"></i>
+                                    <p class="small">Esta planta no tiene imagen</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
                         <form id="manageStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.actualizar_tienda', id=planta.id) }}">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Estado en Tienda</label>
-                                    <div class="form-check">
+                                    <label class="form-label fw-bold">Estado en Tienda</label>
+                                    <div class="form-check mb-2">
                                         <input class="form-check-input" type="radio" name="disponible_venta" 
                                                id="activa{{ planta.id }}" value="true" {% if planta.disponible_venta %}checked{% endif %}>
                                         <label class="form-check-label" for="activa{{ planta.id }}">
-                                            <span class="badge bg-success">Disponible</span>
+                                            <span class="badge bg-success p-2">
+                                                <i class="fas fa-check-circle me-1"></i> Disponible
+                                            </span>
                                         </label>
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="disponible_venta" 
                                                id="inactiva{{ planta.id }}" value="false" {% if not planta.disponible_venta %}checked{% endif %}>
                                         <label class="form-check-label" for="inactiva{{ planta.id }}">
-                                            <span class="badge bg-secondary">No disponible</span>
+                                            <span class="badge bg-secondary p-2">
+                                                <i class="fas fa-times-circle me-1"></i> No disponible
+                                            </span>
                                         </label>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
-                                    <label for="stock_actual{{ planta.id }}" class="form-label">
+                                    <label for="stock_actual{{ planta.id }}" class="form-label fw-bold">
                                         <i class="fas fa-box"></i> Stock Actual
                                     </label>
                                     <input type="number" class="form-control" id="stock_actual{{ planta.id }}" 
@@ -285,22 +370,26 @@
                                 </div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="precio_actual{{ planta.id }}" class="form-label">
+                            <div class="mb-4">
+                                <label for="precio_actual{{ planta.id }}" class="form-label fw-bold">
                                     <i class="fas fa-tag"></i> Precio Actual
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="precio_actual{{ planta.id }}" 
-                                           name="precio" value="{{ planta.precio or 0 }}" step="0.01">
+                                           name="precio" value="{{ planta.precio or 0 }}" step="0.01" min="0">
                                 </div>
                             </div>
                         </form>
                         
-                        <div class="d-grid gap-2 mt-3">
+                        <div class="d-grid gap-2 mt-4">
                             <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
                                class="btn btn-outline-primary" target="_blank">
-                                <i class="fas fa-external-link-alt"></i> Ver en tienda
+                                <i class="fas fa-external-link-alt me-2"></i> Ver en tienda
+                            </a>
+                            <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-edit me-2"></i> Editar información completa
                             </a>
                         </div>
                     </div>
@@ -327,11 +416,33 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="text-center mb-4">
+                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{{ planta.obtener_imagen() }}" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 150px;"
+                                     alt="{{ planta.nombre }}">
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="fas fa-seedling fa-4x mb-3 opacity-50"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>¡Advertencia!</strong> Esta acción no se puede deshacer.
                         </div>
-                        <p class="mb-0">¿Estás seguro de que quieres eliminar la planta <strong>"{{ planta.nombre }}"</strong>?</p>
+                        <p class="mb-2">¿Estás seguro de que quieres eliminar la planta:</p>
+                        <h5 class="text-center text-danger">"{{ planta.nombre }}"</h5>
+                        
+                        {% if planta.disponible_venta %}
+                        <div class="alert alert-danger mt-3">
+                            <i class="fas fa-store me-2"></i>
+                            <strong>Atención:</strong> Esta planta está disponible en la tienda. 
+                            También será eliminada de la tienda.
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -348,11 +459,51 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- Estadísticas -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-chart-pie text-success me-2"></i> Resumen de Plantas
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h2 class="text-success mb-1">{{ plantas|length }}</h2>
+                                <small class="text-muted">Total Plantas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h2 class="text-success mb-1">{{ plantas|selectattr('disponible_venta')|list|length }}</h2>
+                                <small class="text-muted">En Tienda</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h2 class="text-success mb-1">{{ plantas|selectattr('estado', 'equalto', 'activa')|list|length }}</h2>
+                                <small class="text-muted">Activas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h2 class="text-success mb-1">{{ plantas|selectattr('tiene_imagen')|list|length }}</h2>
+                                <small class="text-muted">Con Imagen</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     {% else %}
     <div class="alert alert-info border-0 shadow-sm">
         <div class="d-flex align-items-center">
             <div class="flex-shrink-0">
-                <i class="fas fa-seedling fa-3x text-info"></i>
+                <i class="fas fa-seedling fa-4x text-info"></i>
             </div>
             <div class="flex-grow-1 ms-3">
                 <h5 class="alert-heading mb-2">¡Comienza tu jardín digital!</h5>
@@ -366,81 +517,51 @@
     {% endif %}
 </div>
 
-<!-- Incluir FontAwesome para los iconos -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
-<!-- Incluir Bootstrap JS para los modales -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Incluir SweetAlert2 para notificaciones -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <style>
     .card {
         transition: all 0.3s ease;
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
+        border: 1px solid rgba(40, 167, 69, 0.1);
     }
     .card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 10px 25px rgba(40, 167, 69, 0.15);
+        box-shadow: 0 12px 30px rgba(40, 167, 69, 0.15);
         border-color: #28a745;
+    }
+    .card-img-top {
+        position: relative;
+    }
+    .card-img-top img {
+        transition: transform 0.5s ease;
+    }
+    .card:hover .card-img-top img {
+        transform: scale(1.05);
     }
     .card-title {
         font-weight: 600;
         color: #198754;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #f0f0f0;
     }
     .btn-group {
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     .btn-group .btn {
         flex: 1;
         border: none;
         padding: 0.5rem 0;
         transition: all 0.2s;
+        font-weight: 500;
     }
     .btn-group .btn:hover {
         transform: scale(1.05);
-    }
-    .btn-group .btn:first-child {
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-    }
-    .btn-group .btn:last-child {
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
+        z-index: 10;
     }
     .badge {
         font-weight: 500;
-        padding: 0.4em 1em;
-    }
-    .modal-content {
-        border-radius: 10px;
-        border: none;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .alert-info {
-        background-color: #e8f4fc;
-        border-left: 4px solid #17a2b8;
-    }
-    .btn-success {
-        background: linear-gradient(135deg, #28a745, #20c997);
-        border: none;
-        padding: 0.5rem 1.5rem;
-        font-weight: 500;
-    }
-    .btn-success:hover {
-        background: linear-gradient(135deg, #218838, #1ba87e);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-    }
-    .position-absolute {
-        z-index: 10;
+        padding: 0.5em 1em;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .store-badge {
         animation: pulse 2s infinite;
@@ -450,10 +571,50 @@
         50% { transform: scale(1.05); }
         100% { transform: scale(1); }
     }
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+    }
+    .btn-success:hover {
+        background: linear-gradient(135deg, #218838, #1ba87e);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+    }
+    .object-fit-cover {
+        object-fit: cover;
+    }
+    .bg-pink {
+        background-color: #e83e8c !important;
+        color: white;
+    }
+    .text-pink {
+        color: #e83e8c !important;
+    }
+    .tooltip-inner {
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+    }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            boundary: 'viewport',
+            trigger: 'hover'
+        });
+    });
+    
     // Hacer las tarjetas más interactivas
     const cards = document.querySelectorAll('.card');
     cards.forEach(card => {
@@ -474,6 +635,37 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(this);
             const plantaId = formData.get('planta_id');
             
+            // Validar precio
+            const precio = parseFloat(formData.get('precio'));
+            if (precio <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'El precio debe ser mayor a 0'
+                });
+                return;
+            }
+            
+            // Validar stock
+            const stock = parseInt(formData.get('stock'));
+            if (stock <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'El stock debe ser mayor a 0'
+                });
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Agregando a tienda...',
+                text: 'Por favor espera',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
             fetch(this.action, {
                 method: 'POST',
                 body: formData,
@@ -483,6 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                Swal.close();
                 if (data.success) {
                     // Cerrar modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('addToStoreModal' + plantaId));
@@ -510,6 +703,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                Swal.close();
                 Swal.fire({
                     icon: 'error',
                     title: 'Error de conexión',
@@ -528,6 +722,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(this);
             const plantaId = this.id.replace('manageStoreForm', '');
             
+            Swal.fire({
+                title: 'Actualizando...',
+                text: 'Por favor espera',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
             fetch(this.action, {
                 method: 'POST',
                 body: formData,
@@ -537,6 +740,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                Swal.close();
                 if (data.success) {
                     // Cerrar modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('manageStoreModal' + plantaId));
@@ -562,7 +766,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         text: data.message || 'Ocurrió un error al actualizar'
                     });
                 }
+            })
+            .catch(error => {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'No se pudo conectar con el servidor'
+                });
             });
+        });
+    });
+    
+    // Manejar imágenes con error
+    document.querySelectorAll('img').forEach(img => {
+        img.addEventListener('error', function() {
+            if (!this.hasAttribute('data-error-handled')) {
+                this.setAttribute('data-error-handled', 'true');
+                this.src = '{{ url_for("static", filename="images/planta_default.png") }}';
+                this.style.opacity = '0.7';
+            }
         });
     });
 });

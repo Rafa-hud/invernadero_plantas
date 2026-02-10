@@ -1,0 +1,967 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes y Estadísticas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: all 0.3s;
+        border-left: 4px solid;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    .stat-card-primary { border-left-color: #0d6efd; }
+    .stat-card-success { border-left-color: #198754; }
+    .stat-card-warning { border-left-color: #ffc107; }
+    .stat-card-info { border-left-color: #0dcaf0; }
+    .stat-card-danger { border-left-color: #dc3545; }
+    
+    .trend-up { color: #198754; }
+    .trend-down { color: #dc3545; }
+    .trend-neutral { color: #6c757d; }
+    
+    .metric-badge {
+        font-size: 0.8rem;
+        padding: 2px 8px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-chart-bar text-primary"></i> Reportes y Estadísticas
+                    </h1>
+                    <p class="text-muted">Análisis y métricas del sistema - Actualizado: {{ datetime.now().strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="exportarReporte()">
+                        <i class="fas fa-file-export"></i> Exportar
+                    </button>
+                    <button class="btn btn-outline-secondary me-2" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Estadísticas Rápidas -->
+    <div class="row mb-4">
+        <!-- Total Plantas -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Plantas</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0">{{ plantas_stats.total }}</h3>
+                                {% if plantas_stats.tendencia > 0 %}
+                                <span class="trend-up ms-2">
+                                    <i class="fas fa-arrow-up"></i> {{ plantas_stats.tendencia }}%
+                                </span>
+                                {% elif plantas_stats.tendencia < 0 %}
+                                <span class="trend-down ms-2">
+                                    <i class="fas fa-arrow-down"></i> {{ plantas_stats.tendencia|abs }}%
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-leaf"></i> {{ plantas_stats.activas }} activas
+                                    <span class="mx-2">•</span>
+                                    <i class="fas fa-store"></i> {{ plantas_stats.en_venta }} en venta
+                                </small>
+                            </div>
+                        </div>
+                        <div class="stat-icon text-primary">
+                            <i class="fas fa-seedling"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ventas Totales -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Ventas Totales</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0">${{ "%.2f"|format(pedidos_stats.ventas_totales|float) }}</h3>
+                                {% if pedidos_stats.tendencia_ventas > 0 %}
+                                <span class="trend-up ms-2">
+                                    <i class="fas fa-arrow-up"></i> {{ pedidos_stats.tendencia_ventas }}%
+                                </span>
+                                {% elif pedidos_stats.tendencia_ventas < 0 %}
+                                <span class="trend-down ms-2">
+                                    <i class="fas fa-arrow-down"></i> {{ pedidos_stats.tendencia_ventas|abs }}%
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-ticket-alt"></i> {{ pedidos_stats.total }} pedidos
+                                    <span class="mx-2">•</span>
+                                    <i class="fas fa-check-circle"></i> {{ pedidos_stats.completados }} completados
+                                </small>
+                            </div>
+                        </div>
+                        <div class="stat-icon text-success">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Clientes -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Clientes</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0">{{ clientes_stats.total }}</h3>
+                                {% if clientes_stats.nuevos_este_mes > 0 %}
+                                <span class="trend-up ms-2">
+                                    +{{ clientes_stats.nuevos_este_mes }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-user-clock"></i> {{ clientes_stats.activos }} activos
+                                    <span class="mx-2">•</span>
+                                    <i class="fas fa-calendar-alt"></i> {{ clientes_stats.nuevos_este_mes }} nuevos
+                                </small>
+                            </div>
+                        </div>
+                        <div class="stat-icon text-warning">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Respaldos -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Respaldos</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0">{{ respaldos_stats.total }}</h3>
+                                <span class="badge metric-badge bg-info ms-2">
+                                    {{ "%.1f"|format(respaldos_stats.tamaño_total_gb|float) }} GB
+                                </span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-database"></i> {{ respaldos_stats.completos }} completos
+                                    <span class="mx-2">•</span>
+                                    <i class="fas fa-usb-drive"></i> {{ respaldos_stats.en_usb }} en USB
+                                </small>
+                            </div>
+                        </div>
+                        <div class="stat-icon text-info">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segunda fila de métricas -->
+    <div class="row mb-4">
+        <!-- Pedidos Pendientes -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Estado de Pedidos</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Pendientes</span>
+                        <span class="badge bg-warning">{{ pedidos_stats.por_estado.pendiente or 0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Procesando</span>
+                        <span class="badge bg-info">{{ pedidos_stats.por_estado.procesando or 0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Enviados</span>
+                        <span class="badge bg-primary">{{ pedidos_stats.por_estado.enviado or 0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Completados</span>
+                        <span class="badge bg-success">{{ pedidos_stats.por_estado.completado or 0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Métricas de Tienda -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Métricas de Tienda</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Ticket Promedio</span>
+                        <span class="fw-bold">${{ "%.2f"|format(pedidos_stats.ticket_promedio|float) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Productos/Pedido</span>
+                        <span class="fw-bold">{{ "%.1f"|format(pedidos_stats.productos_por_pedido|float) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Ventas Hoy</span>
+                        <span class="fw-bold">${{ "%.2f"|format(pedidos_stats.ventas_hoy|float) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Conversión</span>
+                        <span class="fw-bold">{{ "%.1f"|format((clientes_stats.con_pedidos / clientes_stats.total * 100) if clientes_stats.total > 0 else 0) }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Últimos Accesos -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Actividad Reciente</h6>
+                    {% for acceso in accesos_recientes[:3] %}
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="flex-shrink-0">
+                            {% if acceso.estado_sesion == 'iniciada' %}
+                            <i class="fas fa-sign-in-alt text-success"></i>
+                            {% elif acceso.estado_sesion == 'cerrada' %}
+                            <i class="fas fa-sign-out-alt text-danger"></i>
+                            {% else %}
+                            <i class="fas fa-user-clock text-info"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 ms-2">
+                            <small class="d-block">{{ acceso.usuario.nombre if acceso.usuario else 'Usuario' }}</small>
+                            <small class="text-muted">{{ acceso.fecha_acceso.strftime('%H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Espacio de Respaldos -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Uso de Almacenamiento</h6>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>Local</small>
+                            <small>{{ "%.1f"|format(respaldos_stats.tamaño_local_mb|float) }} MB</small>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-primary" style="width: {{ (respaldos_stats.tamaño_local_mb / 500 * 100) if 500 > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>USB</small>
+                            <small>{{ "%.1f"|format(respaldos_stats.tamaño_usb_mb|float) }} MB</small>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-warning" style="width: {{ (respaldos_stats.tamaño_usb_mb / 1024 * 100) if 1024 > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Principales -->
+    <div class="row">
+        <!-- Ventas Mensuales -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i> Ventas Mensuales
+                    </h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cambiarPeriodo('mes')">Mes</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cambiarPeriodo('trimestre')">Trimestre</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cambiarPeriodo('año')">Año</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="ventasMensualesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Productos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i> Top 5 Productos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="topProductosChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        {% for producto in top_productos[:5] %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0 me-2">
+                                    {% if loop.index == 1 %}
+                                    <i class="fas fa-crown text-warning"></i>
+                                    {% elif loop.index == 2 %}
+                                    <i class="fas fa-medal text-secondary"></i>
+                                    {% elif loop.index == 3 %}
+                                    <i class="fas fa-award text-danger"></i>
+                                    {% else %}
+                                    <i class="fas fa-seedling text-success"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <small class="d-block">{{ producto.nombre|truncate(20) }}</small>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary">{{ producto.cantidad_vendida }}</span>
+                                <small class="text-muted ms-1">unid.</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Secundarios -->
+    <div class="row">
+        <!-- Distribución de Pedidos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-donut me-2"></i> Distribución de Pedidos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="distribucionPedidosChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Crecimiento de Clientes -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-chart me-2"></i> Crecimiento de Clientes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="crecimientoClientesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tipos de Respaldos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-hdd me-2"></i> Tipos de Respaldos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="tiposRespaldosChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Clientes Destacados -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i> Clientes Destacados
+                    </h5>
+                    <a href="{{ url_for('reports.reporte_clientes') }}" class="btn btn-sm btn-primary">
+                        Ver Todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Total Compras</th>
+                                    <th>Pedidos</th>
+                                    <th>Ticket Promedio</th>
+                                    <th>Último Pedido</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in clientes_destacados[:10] %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <div class="avatar-sm bg-light rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="fas fa-user text-primary"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <strong>{{ cliente.nombre }}</strong>
+                                                <div class="text-muted small">{{ cliente.correo }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">${{ "%.2f"|format(cliente.total_compras|float) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ cliente.total_pedidos }}</span>
+                                    </td>
+                                    <td>${{ "%.2f"|format((cliente.total_compras / cliente.total_pedidos) if cliente.total_pedidos > 0 else 0) }}</td>
+                                    <td>
+                                        {% if cliente.ultimo_pedido %}
+                                        <small>{{ cliente.ultimo_pedido.strftime('%d/%m/%Y') }}</small>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if cliente.estado == 'activo' %}
+                                        <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ cliente.estado }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen del Sistema -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i> Resumen del Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <i class="fas fa-leaf fa-2x text-success mb-3"></i>
+                                <h4>{{ plantas_stats.total }}</h4>
+                                <p class="text-muted mb-0">Plantas Registradas</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <i class="fas fa-shopping-cart fa-2x text-primary mb-3"></i>
+                                <h4>{{ pedidos_stats.total }}</h4>
+                                <p class="text-muted mb-0">Pedidos Realizados</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <i class="fas fa-users fa-2x text-warning mb-3"></i>
+                                <h4>{{ clientes_stats.total }}</h4>
+                                <p class="text-muted mb-0">Clientes Registrados</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <i class="fas fa-database fa-2x text-info mb-3"></i>
+                                <h4>{{ respaldos_stats.total }}</h4>
+                                <p class="text-muted mb-0">Respaldos Realizados</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<script>
+// Variables globales para los gráficos
+let ventasChart = null;
+let topProductosChart = null;
+let distribucionPedidosChart = null;
+let crecimientoClientesChart = null;
+let tiposRespaldosChart = null;
+let periodoActual = 'mes';
+
+// Datos desde el servidor (pasados por Flask)
+const datosServidor = {
+    ventasMensuales: {{ ventas_mensuales|tojson|safe }},
+    topProductos: {{ top_productos|tojson|safe }},
+    pedidosPorEstado: {{ pedidos_stats.por_estado|tojson|safe }},
+    crecimientoClientes: {{ crecimiento_clientes|tojson|safe }},
+    tiposRespaldos: {{ tipos_respaldos|tojson|safe }},
+    ventasDiarias: {{ ventas_diarias|tojson|safe }}
+};
+
+// Inicializar gráficos cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarGraficoVentas();
+    inicializarGraficoTopProductos();
+    inicializarGraficoDistribucionPedidos();
+    inicializarGraficoCrecimientoClientes();
+    inicializarGraficoTiposRespaldos();
+    configurarEventListeners();
+});
+
+// Configurar eventos
+function configurarEventListeners() {
+    // Exportar reporte
+    window.exportarReporte = function() {
+        const html = `
+            <h1>Reporte del Sistema</h1>
+            <p>Fecha: ${new Date().toLocaleDateString()}</p>
+            <hr>
+            <h2>Estadísticas Principales</h2>
+            <p>Total Plantas: {{ plantas_stats.total }}</p>
+            <p>Ventas Totales: ${{ "%.2f"|format(pedidos_stats.ventas_totales|float) }}</p>
+            <p>Total Clientes: {{ clientes_stats.total }}</p>
+            <p>Total Pedidos: {{ pedidos_stats.total }}</p>
+        `;
+        
+        const ventana = window.open('', '_blank');
+        ventana.document.write(html);
+        ventana.document.close();
+        ventana.print();
+    };
+}
+
+// Inicializar gráfico de ventas mensuales
+function inicializarGraficoVentas() {
+    const ctx = document.getElementById('ventasMensualesChart').getContext('2d');
+    
+    // Preparar datos según el período
+    const datos = prepararDatosVentas(periodoActual);
+    
+    ventasChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: datos.labels,
+            datasets: [{
+                label: 'Ventas ($)',
+                data: datos.valores,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#0d6efd',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Ventas: $${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value;
+                        }
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'nearest'
+            }
+        }
+    });
+}
+
+// Preparar datos de ventas según período
+function prepararDatosVentas(periodo) {
+    const datos = datosServidor.ventasMensuales;
+    const ahora = new Date();
+    
+    switch(periodo) {
+        case 'mes':
+            // Últimos 30 días
+            const ultimos30Dias = [];
+            for (let i = 29; i >= 0; i--) {
+                const fecha = new Date();
+                fecha.setDate(fecha.getDate() - i);
+                const key = fecha.toISOString().split('T')[0];
+                ultimos30Dias.push({
+                    label: fecha.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+                    valor: datos[key] || 0
+                });
+            }
+            return {
+                labels: ultimos30Dias.map(d => d.label),
+                valores: ultimos30Dias.map(d => d.valor)
+            };
+            
+        case 'trimestre':
+            // Últimos 3 meses
+            const ultimos3Meses = [];
+            for (let i = 2; i >= 0; i--) {
+                const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+                const key = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0');
+                ultimos3Meses.push({
+                    label: fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }),
+                    valor: datos[key] || 0
+                });
+            }
+            return {
+                labels: ultimos3Meses.map(d => d.label),
+                valores: ultimos3Meses.map(d => d.valor)
+            };
+            
+        case 'año':
+            // Últimos 12 meses
+            const ultimos12Meses = [];
+            for (let i = 11; i >= 0; i--) {
+                const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+                const key = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0');
+                ultimos12Meses.push({
+                    label: fecha.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }),
+                    valor: datos[key] || 0
+                });
+            }
+            return {
+                labels: ultimos12Meses.map(d => d.label),
+                valores: ultimos12Meses.map(d => d.valor)
+            };
+            
+        default:
+            return { labels: [], valores: [] };
+    }
+}
+
+// Cambiar período del gráfico de ventas
+function cambiarPeriodo(periodo) {
+    periodoActual = periodo;
+    
+    if (ventasChart) {
+        const datos = prepararDatosVentas(periodo);
+        ventasChart.data.labels = datos.labels;
+        ventasChart.data.datasets[0].data = datos.valores;
+        ventasChart.update();
+    }
+}
+
+// Inicializar gráfico de top productos
+function inicializarGraficoTopProductos() {
+    const ctx = document.getElementById('topProductosChart').getContext('2d');
+    const productos = datosServidor.topProductos.slice(0, 5);
+    
+    topProductosChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: productos.map(p => p.nombre.substring(0, 15) + (p.nombre.length > 15 ? '...' : '')),
+            datasets: [{
+                data: productos.map(p => p.cantidad_vendida),
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const producto = productos[context.dataIndex];
+                            return [
+                                `Producto: ${producto.nombre}`,
+                                `Vendidos: ${context.raw} unidades`,
+                                `Ingresos: $${producto.ingresos ? producto.ingresos.toFixed(2) : '0.00'}`
+                            ];
+                        }
+                    }
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'bold'
+                    },
+                    formatter: function(value, context) {
+                        return productos[context.dataIndex].cantidad_vendida;
+                    }
+                }
+            },
+            cutout: '60%'
+        },
+        plugins: [ChartDataLabels]
+    });
+}
+
+// Inicializar gráfico de distribución de pedidos
+function inicializarGraficoDistribucionPedidos() {
+    const ctx = document.getElementById('distribucionPedidosChart').getContext('2d');
+    const estados = datosServidor.pedidosPorEstado;
+    
+    distribucionPedidosChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(estados).map(e => e.charAt(0).toUpperCase() + e.slice(1)),
+            datasets: [{
+                data: Object.values(estados),
+                backgroundColor: [
+                    '#FF6384', // pendiente
+                    '#36A2EB', // procesando
+                    '#FFCE56', // enviado
+                    '#4BC0C0'  // completado
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw} pedidos`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Inicializar gráfico de crecimiento de clientes
+function inicializarGraficoCrecimientoClientes() {
+    const ctx = document.getElementById('crecimientoClientesChart').getContext('2d');
+    const crecimiento = datosServidor.crecimientoClientes;
+    
+    crecimientoClientesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(crecimiento),
+            datasets: [{
+                label: 'Nuevos Clientes',
+                data: Object.values(crecimiento),
+                backgroundColor: '#20c997',
+                borderColor: '#198754',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Nuevos clientes: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Inicializar gráfico de tipos de respaldos
+function inicializarGraficoTiposRespaldos() {
+    const ctx = document.getElementById('tiposRespaldosChart').getContext('2d');
+    const tipos = datosServidor.tiposRespaldos;
+    
+    tiposRespaldosChart = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: Object.keys(tipos),
+            datasets: [{
+                data: Object.values(tipos),
+                backgroundColor: [
+                    '#FF6384', // completo
+                    '#36A2EB', // diferencial
+                    '#FFCE56', // copia_usb
+                    '#4BC0C0', // importado
+                    '#9966FF'  // programado
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw} respaldos`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                r: {
+                    ticks: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Actualizar datos en tiempo real
+function actualizarDatos() {
+    fetch('/reportes/actualizar')
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar tarjetas principales
+            document.getElementById('totalPlantas').textContent = data.plantas.total;
+            document.getElementById('ventasTotales').textContent = '$' + data.pedidos.ventas_totales.toFixed(2);
+            document.getElementById('totalClientes').textContent = data.clientes.total;
+            document.getElementById('totalPedidos').textContent = data.pedidos.total;
+            
+            // Actualizar gráficos
+            if (ventasChart) {
+                ventasChart.data.datasets[0].data = data.ventas_mensuales;
+                ventasChart.update();
+            }
+        })
+        .catch(error => console.error('Error actualizando datos:', error));
+}
+
+// Actualizar cada 5 minutos
+setInterval(actualizarDatos, 5 * 60 * 1000);
+
+// Función para descargar reporte como PDF
+function descargarReportePDF() {
+    alert('Esta función exportaría el reporte a PDF. Necesitarías implementar una librería como jsPDF.');
+}
+
+// Función para compartir reporte
+function compartirReporte() {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Reporte del Sistema',
+            text: 'Mira las estadísticas de nuestro sistema de gestión de plantas.',
+            url: window.location.href
+        });
+    } else {
+        alert('Comparte esta URL: ' + window.location.href);
+    }
+}
+</script>
+{% endblock %}

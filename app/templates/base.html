@@ -3,156 +3,873 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión de Plantas - {% block title %}{% endblock %}</title>
+    <title>{% block title %}Sistema de Gestión de Plantas{% endblock %}</title>
     
-    <!-- Bootstrap 5 -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
-    {% block styles %}{% endblock %}
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root {
+            --primary-green: #2e7d32;
+            --light-green: #4caf50;
+            --dark-green: #1b5e20;
+            --accent-brown: #8d6e63;
+            --light-bg: #f9f9f9;
+            --sidebar-dark: #1b5e20;
+            --sidebar-light: #2e7d32;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .tienda-header {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1030;
+        }
+        
+        .tienda-header h1 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 600;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+        
+        .sidebar {
+            min-height: calc(100vh - 70px);
+            background: linear-gradient(180deg, var(--sidebar-dark) 0%, var(--sidebar-light) 100%);
+            color: white;
+            width: 250px;
+            position: fixed;
+            left: 0;
+            top: 70px;
+            z-index: 1020;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,.9);
+            padding: 0.75rem 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 400;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: white;
+            background: rgba(255,255,255,.15);
+            border-left: 3px solid #ffd54f;
+        }
+        
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,.2);
+            border-left: 3px solid #ffd54f;
+            font-weight: 500;
+        }
+        
+        .sidebar .nav-link i {
+            width: 24px;
+            margin-right: 12px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .content-wrapper {
+            margin-left: 250px;
+            padding: 30px;
+            min-height: calc(100vh - 70px);
+            margin-top: 70px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                overflow: hidden;
+                transition: width 0.3s;
+            }
+            
+            .content-wrapper {
+                margin-left: 0;
+            }
+            
+            .sidebar.show {
+                width: 250px;
+            }
+            
+            .tienda-header h1 {
+                font-size: 1.4rem;
+            }
+            
+            .content-wrapper {
+                padding: 20px 15px;
+            }
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            background: white;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 10px;
+            font-weight: 400;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 10px 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--dark-green);
+            border-color: var(--dark-green);
+            transform: translateY(-2px);
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+        
+        .btn-success {
+            background-color: var(--light-green);
+            border-color: var(--light-green);
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .table th {
+            font-weight: 600;
+            color: #495057;
+            background-color: #f8f9fa;
+            border-top: none;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(46, 125, 50, 0.05);
+        }
+        
+        .badge {
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        
+        .badge-primary {
+            background-color: var(--primary-green);
+        }
+        
+        .badge-success {
+            background-color: var(--light-green);
+        }
+        
+        /* Animación para flash messages */
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .alert-flash {
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            border-left-color: var(--light-green);
+        }
+        
+        .alert-danger {
+            border-left-color: #dc3545;
+        }
+        
+        .alert-warning {
+            border-left-color: #ffc107;
+        }
+        
+        .alert-info {
+            border-left-color: #17a2b8;
+        }
+        
+        /* Estilos específicos para elementos de la tienda */
+        .precio {
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 1.4rem;
+        }
+        
+        .badge-categoria {
+            background-color: var(--light-green);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .btn-tienda {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn-tienda:hover {
+            background-color: var(--dark-green);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 90, 35, 0.3);
+        }
+        
+        .btn-logout {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-logout:hover {
+            background-color: #c82333;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .footer-tienda {
+            background-color: var(--dark-green);
+            color: white;
+            padding: 25px 0;
+            margin-top: 40px;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .user-info {
+            background-color: rgba(255, 255, 255, 0.15);
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin-right: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .user-info i {
+            margin-right: 8px;
+        }
+        
+        .dropdown-menu {
+            border-radius: 10px;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-top: 10px;
+        }
+        
+        .dropdown-item {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 2px 8px;
+            width: calc(100% - 16px);
+        }
+        
+        .dropdown-item:hover {
+            background-color: rgba(46, 125, 50, 0.1);
+        }
+        
+        .dropdown-divider {
+            margin: 8px 15px;
+            opacity: 0.2;
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            font-weight: 600;
+            color: var(--dark-green);
+        }
+        
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--light-green);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-green);
+        }
+        
+        /* Mejoras para forms */
+        .form-control:focus {
+            border-color: var(--light-green);
+            box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
+        }
+        
+        .form-select:focus {
+            border-color: var(--light-green);
+            box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
+        }
+        
+        .progress-bar {
+            background-color: var(--primary-green);
+        }
+        
+        /* Estilos para modales */
+        .modal-content {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            background-color: var(--primary-green);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            border: none;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        /* Badge para notificaciones */
+        .badge-notification {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .tienda-header .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .user-info {
+                margin-bottom: 10px;
+                margin-right: 0;
+            }
+            
+            .content-wrapper {
+                margin-top: 110px;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navbar -->
-    
-    <!-- En la barra de navegación de base.html, agrega esto: -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-success">
-    <div class="container">
-        <a class="navbar-brand" href="{% if current_user.rol == 'cliente' %}{{ url_for('tienda.tienda_index') }}{% else %}{{ url_for('main.dashboard') }}{% endif %}">
-            <i class="fas fa-leaf"></i> Sistema Plantas
-        </a>
-        
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                {% if current_user.is_authenticated %}
-                    {% if current_user.rol == 'admin' %}
-                        <!-- Menú para administrador -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.dashboard') }}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('plants.listar_plantas') }}">
-                                <i class="fas fa-seedling"></i> Plantas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('backup.listar_respaldos') }}">
-                                <i class="fas fa-database"></i> Respaldos
-                            </a>
-                        </li>
-                    {% elif current_user.rol == 'cliente' %}
-                        <!-- Menú para cliente -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('tienda.tienda_index') }}">
-                                <i class="fas fa-store"></i> Tienda
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('tienda.ver_carrito') }}">
-                                <i class="fas fa-shopping-cart"></i> Carrito
-                            </a>
-                        </li>
-                    {% endif %}
-                {% endif %}
-            </ul>
-            
-            <ul class="navbar-nav">
-                {% if current_user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user"></i> {{ current_user.nombre }}
-                            <span class="badge bg-light text-dark ms-1">
-                                {% if current_user.rol == 'admin' %}
-                                    Admin
-                                {% else %}
-                                    Cliente
-                                {% endif %}
-                            </span>
-                        </a>
-                        <ul class="dropdown-menu">
+    <!-- Header -->
+    <header class="tienda-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <button class="navbar-toggler me-3 text-white" type="button" onclick="toggleSidebar()">
+                        <i class="fas fa-bars fa-lg"></i>
+                    </button>
+                    
+                    <h1 class="mb-0">
+                        <i class="fas fa-leaf me-2"></i> Vivero Digital
+                    </h1>
+                </div>
+                
+                <div class="d-flex align-items-center">
+                    {% if current_user.is_authenticated %}
+                    <div class="user-info me-3">
+                        <i class="fas fa-user-circle"></i>
+                        <span class="fw-medium">{{ current_user.nombre }}</span>
+                        <small class="ms-2 opacity-75">({{ current_user.rol|title }})</small>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if current_user.rol == 'admin' %}
                             <li>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-id-card"></i> Mi Perfil
+                                <span class="dropdown-item-text fw-bold">
+                                    <i class="fas fa-user-shield text-success me-2"></i>
+                                    Administrador
+                                </span>
+                            </li>
+                            {% else %}
+                            <li>
+                                <span class="dropdown-item-text fw-bold">
+                                    <i class="fas fa-user text-success me-2"></i>
+                                    Usuario
+                                </span>
+                            </li>
+                            {% endif %}
+                            
+                            <li>
+                                <span class="dropdown-item-text text-muted small">
+                                    <i class="fas fa-envelope me-2"></i>
+                                    {{ current_user.correo }}
+                                </span>
+                            </li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('main.dashboard') }}">
+                                    <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                                 </a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            
+                            {% if current_user.rol == 'admin' %}
                             <li>
-                                <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
-                                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                <a class="dropdown-item" href="{{ url_for('main.admin_pedidos') }}">
+                                    <i class="fas fa-clipboard-list me-2"></i> Gestión de Pedidos
                                 </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('main.estadisticas_tienda') }}">
+                                    <i class="fas fa-chart-line me-2"></i> Estadísticas
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li>
+                                <form id="logout-form" action="{{ url_for('auth.logout') }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión
+                                    </button>
+                                </form>
                             </li>
                         </ul>
-                    </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">
-                            <i class="fas fa-sign-in-alt"></i> Login
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.registro_cliente') }}">
-                            <i class="fas fa-user-plus"></i> Registro Cliente
-                        </a>
-                    </li>
-                {% endif %}
-            </ul>
-        </div>
-    </div>
-</nav>
-
-    <!-- Mensajes Flash -->
-    <div class="container mt-3">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
-    <!-- Contenido Principal -->
-    <main class="container py-4">
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- Footer FIXED - sin variable 'now' -->
-    <footer class="bg-light text-dark mt-5 py-3 border-top">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-0">
-                        <i class="fas fa-leaf text-success"></i>
-                        Sistema de Gestión de Plantas &copy; 2024
-                    </p>
-                </div>
-                <div class="col-md-6 text-end">
-                    <p class="mb-0">
-                        <small>
-                            <i class="fas fa-database"></i>
-                            Conectado a MySQL
-                        </small>
-                    </p>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light me-2">
+                        <i class="fas fa-sign-in-alt me-1"></i> Iniciar Sesión
+                    </a>
+                    <a href="{{ url_for('auth.registro_cliente') }}" class="btn btn-light">
+                        <i class="fas fa-user-plus me-1"></i> Registrarse
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
-    </footer>
+    </header>
 
-    <!-- Scripts -->
+    <!-- Sidebar (solo para admin) -->
+    {% if current_user.is_authenticated and current_user.rol == 'admin' %}
+    <div class="sidebar" id="sidebar">
+        <div class="position-sticky pt-4">
+            <div class="px-3 pb-4">
+                <h5 class="text-center mb-4 text-white">
+                    <i class="fas fa-cogs me-2"></i> Panel de Control
+                </h5>
+                
+                <ul class="nav flex-column">
+                    <!-- Dashboard -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" 
+                           href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    <!-- Plantas -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'plants.' in request.endpoint %}active{% endif %}" 
+                           href="{{ url_for('plants.listar_plantas') }}">
+                            <i class="fas fa-seedling"></i> Gestión de Plantas
+                        </a>
+                    </li>
+                    
+                    <!-- Respaldos -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'backup.' in request.endpoint %}active{% endif %}" 
+                           href="{{ url_for('backup.listar_respaldos') }}">
+                            <i class="fas fa-database"></i> Sistema de Respaldos
+                        </a>
+                    </li>
+                    
+                    <!-- Reportes -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'reports.' in request.endpoint %}active{% endif %}" 
+                           href="{{ url_for('reports.reportes') }}">
+                            <i class="fas fa-chart-bar"></i> Reportes y Análisis
+                        </a>
+                    </li>
+                    
+                    <!-- Pedidos -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.admin_pedidos' %}active{% endif %}" 
+                           href="{{ url_for('main.admin_pedidos') }}">
+                            <i class="fas fa-shopping-cart"></i> Gestión de Pedidos
+                        </a>
+                    </li>
+                    <!--
+                  
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.estadisticas_tienda' %}active{% endif %}" 
+                           href="{{ url_for('main.estadisticas_tienda') }}">
+                            <i class="fas fa-chart-pie"></i> Estadísticas de Tienda
+                        </a>
+                    </li>
+                    -->
+                    <hr class="my-3 opacity-25">
+                    
+                    <!-- Acciones rápidas -->
+                    <li class="nav-item">
+                        <div class="px-3 mb-2">
+                            <small class="text-uppercase text-white opacity-75">Acciones Rápidas</small>
+                        </div>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('plants.crear_planta') }}">
+                            <i class="fas fa-plus-circle"></i> Nueva Planta
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="crearRespaldo('completo');">
+                            <i class="fas fa-save"></i> Respaldo Completo
+                        </a>
+                    </li>
+                    
+                    <!-- Debug links (solo en desarrollo) -->
+                    {% if config.DEBUG %}
+                    <hr class="my-3 opacity-25">
+                    <li class="nav-item">
+                        <div class="px-3 mb-2">
+                            <small class="text-uppercase text-white opacity-75">Desarrollo</small>
+                        </div>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-warning" href="{{ url_for('main.debug_session') }}">
+                            <i class="fas fa-bug"></i> Debug Session
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="content-wrapper" id="contentWrapper">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show alert-flash mb-4" role="alert">
+                    {% if category == 'success' %}
+                        <i class="fas fa-check-circle me-2"></i>
+                    {% elif category == 'danger' %}
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                    {% elif category == 'warning' %}
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle me-2"></i>
+                    {% endif %}
+                    
+                    {{ message|safe }}
+                    
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+        
+        <!-- Footer -->
+        <footer class="footer-tienda mt-5">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <h5 class="mb-3">
+                            <i class="fas fa-leaf me-2"></i> Vivero Digital
+                        </h5>
+                        <p class="mb-0 opacity-75">Sistema de Gestión Integral de Plantas</p>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <h5 class="mb-3">Contacto</h5>
+                        <p class="mb-1 opacity-75">
+                            <i class="fas fa-envelope me-2"></i> soporte@viverodigital.com
+                        </p>
+                        <p class="mb-0 opacity-75">
+                            <i class="fas fa-phone me-2"></i> +1 234 567 8900
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-4 mb-4">
+                        <h5 class="mb-3">Enlaces</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <a href="{{ url_for('main.dashboard') }}" class="text-white opacity-75 text-decoration-none">
+                                    <i class="fas fa-home me-2"></i> Dashboard
+                                </a>
+                            </li>
+                            {% if current_user.is_authenticated %}
+                                <li class="mb-2">
+                                    <a href="{{ url_for('auth.logout') }}" class="text-white opacity-75 text-decoration-none">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="mb-2">
+                                    <a href="{{ url_for('auth.login') }}" class="text-white opacity-75 text-decoration-none">
+                                        <i class="fas fa-sign-in-alt me-2"></i> Iniciar Sesión
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                <hr class="bg-white opacity-25">
+                <div class="text-center pt-3">
+                    <p class="mb-0 opacity-75">
+                        &copy; {{ now.year if now else '2024' }} Vivero Digital. 
+                        <span class="d-block d-md-inline mt-1 mt-md-0">Todos los derechos reservados.</span>
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    {% block scripts %}{% endblock %}
+    <script>
+        // Toggle sidebar en móviles
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('contentWrapper');
+            
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle('show');
+                if (sidebar.classList.contains('show')) {
+                    content.style.marginLeft = '250px';
+                    content.style.transition = 'margin-left 0.3s';
+                } else {
+                    content.style.marginLeft = '0';
+                }
+            }
+        }
+        
+        // Cerrar sidebar en móviles al hacer clic en enlace
+        document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('show');
+                    document.getElementById('contentWrapper').style.marginLeft = '0';
+                }
+            });
+        });
+        
+        // Cerrar sidebar al hacer clic fuera en móviles
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('contentWrapper');
+            const toggleBtn = document.querySelector('[onclick="toggleSidebar()"]');
+            
+            if (window.innerWidth <= 768 && 
+                sidebar && sidebar.classList.contains('show') &&
+                !sidebar.contains(event.target) && 
+                !toggleBtn.contains(event.target)) {
+                sidebar.classList.remove('show');
+                content.style.marginLeft = '0';
+            }
+        });
+        
+        // Función global para crear respaldos
+        window.crearRespaldo = function(tipo) {
+            Swal.fire({
+                title: `Crear respaldo ${tipo}`,
+                text: `¿Deseas crear un respaldo ${tipo} de la base de datos?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, crear',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2e7d32',
+                cancelButtonColor: '#6c757d',
+                customClass: {
+                    popup: 'rounded-lg'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const url = tipo === 'completo' ? 
+                        '/respaldos/crear/completo' : 
+                        '/respaldos/crear/diferencial';
+                    
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: 'Creando respaldo, por favor espera.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrf_token')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Éxito!',
+                                html: `<div class="text-center">
+                                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                    <p class="mb-0">${data.message}</p>
+                                    <small class="text-muted mt-2 d-block">Redirigiendo...</small>
+                                </div>`,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                background: '#f8f9fa'
+                            });
+                            
+                            setTimeout(() => {
+                                window.location.href = '/respaldos/';
+                            }, 2000);
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Error al crear el respaldo',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#2e7d32'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de conexión',
+                            text: 'No se pudo conectar con el servidor',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#2e7d32'
+                        });
+                    });
+                }
+            });
+        };
+        
+        // Función para obtener cookie CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Inicializar tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl, {
+                    delay: { show: 500, hide: 100 }
+                });
+            });
+            
+            // Inicializar popovers
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+        });
+        
+        // Ajustar altura del content-wrapper en móviles
+        function ajustarAltura() {
+            const header = document.querySelector('.tienda-header');
+            const content = document.getElementById('contentWrapper');
+            if (header && content && window.innerWidth <= 768) {
+                const headerHeight = header.offsetHeight;
+                content.style.marginTop = headerHeight + 'px';
+            }
+        }
+        
+        // Ejecutar al cargar y al redimensionar
+        window.addEventListener('load', ajustarAltura);
+        window.addEventListener('resize', ajustarAltura);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

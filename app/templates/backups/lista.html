@@ -12,7 +12,7 @@
                     <h1 class="display-6">
                         <i class="fas fa-database text-primary"></i> Gestión de Respaldos
                     </h1>
-                    <p class="text-muted">Administra los respaldos de la base de datos del sistema.</p>
+                    <p class="text-muted">Administra y protege los respaldos de la base de datos.</p>
                 </div>
                 <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left"></i> Volver al Dashboard
@@ -21,14 +21,96 @@
         </div>
     </div>
 
-    <!-- Panel de acciones -->
-    <div class="row mb-4">
+    <!-- Panel de estado USB -->
+    <div class="row mb-3">
         <div class="col-12">
-            <div class="card shadow border-0">
-                <div class="card-header bg-white">
+            <div id="usbStatusContainer">
+                {% if usb_mounted %}
+                <div class="alert alert-success d-flex align-items-center" id="usbStatusAlert">
+                    <i class="fas fa-usb-drive fa-2x me-3"></i>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1"><i class="fas fa-check-circle"></i> USB Conectado</h5>
+                                <p class="mb-0">
+                                    Ruta: <code>{{ usb_path|e }}</code> 
+                                    | Libre: <strong>{{ usb_free_space }} GB</strong> 
+                                    | Total: {{ usb_total_space }} GB
+                                </p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-success" onclick="estadoUSBPormenorizado()">
+                                    <i class="fas fa-info-circle"></i> Detalles
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="probarPermisosUSB()">
+                                    <i class="fas fa-wrench"></i> Probar
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="debugUSBDeteccion()">
+                                    <i class="fas fa-bug"></i> Debug
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning d-flex align-items-center" id="usbStatusAlert">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1"><i class="fas fa-times-circle"></i> USB No Detectado</h5>
+                                <p class="mb-0">
+                                    Conecta una unidad USB para respaldos externos.
+                                    <span class="text-muted small d-block mt-1">
+                                        <i class="fas fa-info-circle"></i> Requerido para operaciones de copia a USB
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" onclick="buscarUSB()">
+                                    <i class="fas fa-search"></i> Buscar USB
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="forzarBusquedaUSB()">
+                                    <i class="fas fa-sync-alt"></i> Forzar búsqueda
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="debugUSBDeteccion()">
+                                    <i class="fas fa-bug"></i> Debug
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de acciones y estadísticas -->
+    <div class="row mb-4">
+        <!-- Panel de acciones -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-tools text-primary"></i> Acciones de Respaldo
                     </h5>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="usbToggle" 
+                                   onchange="alternarAlmacenamientoUSB()" 
+                                   {% if usb_mounted %}checked{% else %}disabled{% endif %}>
+                            <label class="form-check-label" for="usbToggle">
+                                <small>Guardar en USB</small>
+                            </label>
+                        </div>
+                        <span class="badge {% if usb_mounted %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if usb_mounted %}
+                            <i class="fas fa-check"></i> USB Disponible
+                            {% else %}
+                            <i class="fas fa-times"></i> USB No disponible
+                            {% endif %}
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -40,17 +122,22 @@
                                     <h5 class="card-title">Respaldo Completo</h5>
                                     <p class="card-text small text-muted">
                                         Crea un respaldo completo de toda la base de datos.
-                                        Incluye todas las tablas y datos.
                                     </p>
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-history"></i> {{ last_backup_time }}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div class="card-footer bg-white border-0">
-                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
-                                        <input type="hidden" name="tipo" value="completo">
-                                        <input type="hidden" name="almacenamiento" value="local">
-                                        <button type="submit" class="btn btn-primary w-100">
-                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Completo
-                                        </button>
-                                    </form>
+                                <div class="card-footer bg-white border-0 pt-0">
+                                    <button type="button" class="btn btn-primary w-100" 
+                                            onclick="crearRespaldo('completo')"
+                                            {% if usb_mounted and usarUSB %}title="Se guardará en USB"{% endif %}>
+                                        <i class="fas fa-plus me-2"></i> Crear
+                                        {% if usb_mounted and usarUSB %}
+                                        <span class="badge bg-warning ms-1"><i class="fas fa-usb-drive"></i></span>
+                                        {% endif %}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -63,41 +150,270 @@
                                     <h5 class="card-title">Respaldo Diferencial</h5>
                                     <p class="card-text small text-muted">
                                         Respalda solo los cambios desde el último respaldo completo.
-                                        Más rápido que un respaldo completo.
                                     </p>
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-database"></i> Solo cambios
+                                        </span>
+                                    </div>
                                 </div>
-                                <div class="card-footer bg-white border-0">
-                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
-                                        <input type="hidden" name="tipo" value="diferencial">
-                                        <input type="hidden" name="almacenamiento" value="local">
-                                        <button type="submit" class="btn btn-info w-100">
-                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Diferencial
-                                        </button>
-                                    </form>
+                                <div class="card-footer bg-white border-0 pt-0">
+                                    <button type="button" class="btn btn-info w-100" 
+                                            onclick="crearRespaldo('diferencial')"
+                                            {% if usb_mounted and usarUSB %}title="Se guardará en USB"{% endif %}>
+                                        <i class="fas fa-plus me-2"></i> Crear
+                                        {% if usb_mounted and usarUSB %}
+                                        <span class="badge bg-warning ms-1"><i class="fas fa-usb-drive"></i></span>
+                                        {% endif %}
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Crear respaldo mínima modificación -->
+                        <!-- Copiar a USB -->
                         <div class="col-md-4 mb-3">
-                            <div class="card border-success h-100">
+                            <div class="card border-warning h-100">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-file-export fa-3x text-success mb-3"></i>
-                                    <h5 class="card-title">Respaldo Mínima</h5>
+                                    <i class="fas fa-usb-drive fa-3x text-warning mb-3"></i>
+                                    <h5 class="card-title">Copiar a USB</h5>
                                     <p class="card-text small text-muted">
-                                        Respalda solo los cambios más recientes.
-                                        Ideal para respaldos frecuentes.
+                                        Copia respaldos locales a una unidad USB externa.
                                     </p>
+                                    <div class="mt-2">
+                                        <div class="small">
+                                            <span class="badge bg-primary">{{ total_completos }} locales</span>
+                                            <span class="badge bg-info">{{ total_copias_usb }} en USB</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-footer bg-white border-0">
-                                    <form method="POST" action="{{ url_for('backup.crear_respaldo') }}">
-                                        <input type="hidden" name="tipo" value="minima_modificacion">
-                                        <input type="hidden" name="almacenamiento" value="local">
-                                        <button type="submit" class="btn btn-success w-100">
-                                            <i class="fas fa-plus me-2"></i> Crear Respaldo Mínima
-                                        </button>
-                                    </form>
+                                <div class="card-footer bg-white border-0 pt-0">
+                                    <button type="button" 
+                                            class="btn btn-warning w-100" 
+                                            id="btnCopiarUSB"
+                                            onclick="mostrarOpcionesCopiaUSB()"
+                                            {% if not usb_mounted %}disabled{% endif %}>
+                                        <i class="fas fa-copy me-2"></i> Copiar a USB
+                                        {% if not usb_mounted %}
+                                        <span class="badge bg-danger ms-1"><i class="fas fa-exclamation"></i></span>
+                                        {% endif %}
+                                    </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Opciones adicionales -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between flex-wrap gap-2">
+                                <!-- Importar respaldo -->
+                                <button type="button" class="btn btn-outline-success flex-fill" 
+                                        data-bs-toggle="modal" data-bs-target="#importModal">
+                                    <i class="fas fa-file-import me-2"></i> Importar Respaldo
+                                </button>
+                                
+                                <!-- Respaldos automáticos -->
+                                <a href="{{ url_for('backup.listar_programaciones') }}" class="btn btn-outline-info flex-fill">
+                                    <i class="fas fa-clock me-2"></i> Programar
+                                </a>
+                                
+                                <!-- Verificar todos -->
+                                <button type="button" class="btn btn-outline-primary flex-fill" 
+                                        onclick="verificarTodosRespaldos()">
+                                    <i class="fas fa-check-double me-2"></i> Verificar Todos
+                                </button>
+                                
+                                <!-- Estado USB detallado -->
+                                <button type="button" class="btn btn-outline-secondary flex-fill" 
+                                        onclick="estadoUSBPormenorizado()"
+                                        {% if not usb_mounted %}disabled{% endif %}>
+                                    <i class="fas fa-chart-pie me-2"></i> Estado USB
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de estadísticas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar text-primary"></i> Estadísticas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Estadísticas por tipo -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="card bg-light border-0 mb-2">
+                                <div class="card-body text-center py-2">
+                                    <div class="h5 text-primary mb-1">{{ total_completos }}</div>
+                                    <small class="text-muted">Completos</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light border-0 mb-2">
+                                <div class="card-body text-center py-2">
+                                    <div class="h5 text-info mb-1">{{ total_diferenciales }}</div>
+                                    <small class="text-muted">Diferenciales</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body text-center py-2">
+                                    <div class="h5 text-warning mb-1">{{ total_copias_usb }}</div>
+                                    <small class="text-muted">En USB</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body text-center py-2">
+                                    <div class="h5 text-success mb-1">{{ respaldos|length }}</div>
+                                    <small class="text-muted">Total</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Uso de espacio local -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-hdd me-1"></i> Almacenamiento Local
+                        </h6>
+                        {% set total_size_local = respaldos|selectattr('almacenamiento', 'equalto', 'local')|sum(attribute='tamaño_mb') or 0 %}
+                        {% set max_size_local = 500 %}
+                        {% set usage_percent_local = (total_size_local / max_size_local * 100) if max_size_local > 0 else 0 %}
+                        {% set usage_percent_local = usage_percent_local if usage_percent_local < 100 else 100 %}
+                        <div class="progress mb-2" style="height: 20px;">
+                            <div class="progress-bar {% if usage_percent_local > 80 %}bg-danger{% elif usage_percent_local > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ usage_percent_local }}%"
+                                 aria-valuenow="{{ usage_percent_local }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%.1f"|format(usage_percent_local) }}%
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span>{{ "%.1f"|format(total_size_local) }} MB</span>
+                            <span>{{ max_size_local }} MB máx.</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Uso de espacio USB -->
+                    {% if usb_mounted and usb_total_space > 0 %}
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-usb-drive me-1"></i> Almacenamiento USB
+                        </h6>
+                        {% set total_size_usb = respaldos|selectattr('almacenamiento', 'equalto', 'usb')|sum(attribute='tamaño_mb') or 0 %}
+                        {% set max_size_usb = usb_total_space * 1024 %}
+                        {% set usage_percent_usb = (total_size_usb / max_size_usb * 100) if max_size_usb > 0 else 0 %}
+                        {% set usage_percent_usb = usage_percent_usb if usage_percent_usb < 100 else 100 %}
+                        <div class="progress mb-2" style="height: 20px;">
+                            <div class="progress-bar {% if usage_percent_usb > 80 %}bg-danger{% elif usage_percent_usb > 60 %}bg-warning{% else %}bg-info{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ usage_percent_usb }}%"
+                                 aria-valuenow="{{ usage_percent_usb }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%.1f"|format(usage_percent_usb) }}%
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span>{{ "%.1f"|format(total_size_usb) }} MB usados</span>
+                            <span>{{ "%.1f"|format(usb_free_space) }} GB libres</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Último respaldo -->
+                    <div class="alert alert-light border">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-history me-1"></i> Último Respaldo
+                        </h6>
+                        {% if respaldos and respaldos[0] %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge {% if respaldos[0].tipo_respaldo == 'completo' %}bg-primary{% else %}bg-info{% endif %}">
+                                {{ respaldos[0].tipo_respaldo|title }}
+                            </span>
+                            <span>
+                                {% if respaldos[0].almacenamiento == 'usb' %}
+                                <i class="fas fa-usb-drive text-warning" title="En USB"></i>
+                                {% else %}
+                                <i class="fas fa-server text-primary" title="Local"></i>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <p class="mb-1 small">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ respaldos[0].fecha_respaldo.strftime('%d/%m/%Y %H:%M') if respaldos[0].fecha_respaldo else 'N/A' }}
+                        </p>
+                        <p class="mb-0 small">
+                            <i class="fas fa-weight me-1"></i>
+                            {{ "%.2f"|format(respaldos[0].tamaño_mb) if respaldos[0].tamaño_mb else '0.00' }} MB
+                        </p>
+                        {% else %}
+                        <p class="mb-0 text-muted">No hay respaldos</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y búsqueda -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body py-2">
+                    <div class="row align-items-center g-2">
+                        <div class="col-md-3">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar respaldo..." id="searchBackup">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filterType">
+                                <option value="all">Todos los tipos</option>
+                                <option value="completo">Completos</option>
+                                <option value="diferencial">Diferenciales</option>
+                                <option value="copia_usb">Copias USB</option>
+                                <option value="importado">Importados</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filterStorage">
+                                <option value="all">Todos los almacenamientos</option>
+                                <option value="local">Local</option>
+                                <option value="usb">USB</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filterIntegrity">
+                                <option value="all">Todos los estados</option>
+                                <option value="verified">Verificados</option>
+                                <option value="unverified">No verificados</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary flex-fill" onclick="aplicarFiltros()">
+                                    <i class="fas fa-filter"></i> Filtrar
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="limpiarFiltros()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="refrescarLista()" id="refreshBtn">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -114,88 +430,97 @@
                     <h5 class="mb-0">
                         <i class="fas fa-history text-primary"></i> Historial de Respaldos
                     </h5>
-                    <span class="badge bg-primary">
-                        {{ respaldos|length }} respaldos
-                    </span>
+                    <div>
+                        <span class="badge bg-primary me-2" id="totalBackupsBadge">
+                            <i class="fas fa-database"></i> {{ respaldos|length }}
+                        </span>
+                        <span class="badge bg-warning" id="filteredBackupsBadge">
+                            Mostrando: {{ respaldos|length }}
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
                     {% if respaldos %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
+                    <div class="table-responsive" id="backupsTableContainer">
+                        <table class="table table-hover" id="backupsTable">
                             <thead class="table-light">
                                 <tr>
                                     <th><i class="fas fa-hashtag"></i> ID</th>
                                     <th><i class="fas fa-file"></i> Tipo</th>
                                     <th><i class="fas fa-calendar"></i> Fecha</th>
-                                    <th><i class="fas fa-user"></i> Realizado por</th>
                                     <th><i class="fas fa-hdd"></i> Archivo / Tamaño</th>
-                                    <th><i class="fas fa-box"></i> Almacenamiento</th>
+                                    <th><i class="fas fa-shield-alt"></i> Integridad</th>
                                     <th><i class="fas fa-cogs"></i> Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for respaldo in respaldos %}
-                                <tr>
+                                <tr class="backup-row" 
+                                    data-id="{{ respaldo.id }}"
+                                    data-type="{{ respaldo.tipo_respaldo }}"
+                                    data-storage="{{ respaldo.almacenamiento }}"
+                                    data-integrity="{{ 'verified' if respaldo.checksum else 'unverified' }}"
+                                    data-name="{{ respaldo.ruta_archivo.split('/')[-1] if respaldo.ruta_archivo and '/' in respaldo.ruta_archivo else respaldo.ruta_archivo or '' }}">
                                     <td>
                                         <span class="badge bg-secondary">#{{ respaldo.id }}</span>
                                     </td>
                                     <td>
-                                        {% if respaldo.tipo_respaldo == 'completo' %}
+                                        {% if 'completo' in respaldo.tipo_respaldo %}
                                         <span class="badge bg-primary">
                                             <i class="fas fa-database"></i> Completo
                                         </span>
-                                        {% elif respaldo.tipo_respaldo == 'diferencial' %}
+                                        {% elif 'diferencial' in respaldo.tipo_respaldo %}
                                         <span class="badge bg-info">
                                             <i class="fas fa-exchange-alt"></i> Diferencial
                                         </span>
-                                        {% elif respaldo.tipo_respaldo == 'minima_modificacion' %}
+                                        {% elif 'copia_usb' in respaldo.tipo_respaldo %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-copy"></i> Copia USB
+                                        </span>
+                                        {% elif 'importado' in respaldo.tipo_respaldo %}
                                         <span class="badge bg-success">
-                                            <i class="fas fa-file-export"></i> Mínima
+                                            <i class="fas fa-file-import"></i> Importado
                                         </span>
                                         {% else %}
                                         <span class="badge bg-secondary">
-                                            {{ respaldo.tipo_respaldo }}
+                                            {{ respaldo.tipo_respaldo|truncate(15) or 'General' }}
                                         </span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <small>{{ respaldo.fecha_respaldo.strftime('%d/%m/%Y') }}</small>
+                                        <small>{{ respaldo.fecha_respaldo.strftime('%d/%m/%Y') if respaldo.fecha_respaldo else 'N/A' }}</small>
                                         <br>
-                                        <small class="text-muted">{{ respaldo.fecha_respaldo.strftime('%H:%M:%S') }}</small>
+                                        <small class="text-muted">{{ respaldo.fecha_respaldo.strftime('%H:%M:%S') if respaldo.fecha_respaldo else '' }}</small>
                                     </td>
                                     <td>
-                                        <small>{{ respaldo.realizado_por or 'Sistema' }}</small>
-                                    </td>
-                                    <td>
-                                        <small class="text-monospace">
-                                            <i class="fas fa-file-code"></i> 
-                                            {{ respaldo.ruta_archivo.split('/')[-1] if respaldo.ruta_archivo else 'N/A' }}
-                                            <br>
-                                            <span class="badge bg-secondary">
-                                                {% if respaldo.tamaño_mb %}
-                                                    {{ "%.2f"|format(respaldo.tamaño_mb) }} MB
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">
+                                                {% if respaldo.almacenamiento == 'usb' %}
+                                                <i class="fas fa-usb-drive text-warning" title="Almacenado en USB"></i>
                                                 {% else %}
-                                                    N/A MB
+                                                <i class="fas fa-server text-primary" title="Almacenado localmente"></i>
                                                 {% endif %}
-                                            </span>
-                                        </small>
+                                            </div>
+                                            <div>
+                                                <small class="d-block text-truncate" style="max-width: 200px;">
+                                                    {{ respaldo.ruta_archivo.split('/')[-1] if respaldo.ruta_archivo and '/' in respaldo.ruta_archivo else respaldo.ruta_archivo or 'N/A' }}
+                                                </small>
+                                                {% if respaldo.tamaño_mb %}
+                                                <span class="badge bg-secondary mt-1">
+                                                    {{ "%.2f"|format(respaldo.tamaño_mb) }} MB
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
-                                        {% if respaldo.almacenamiento == 'local' %}
-                                        <span class="badge bg-secondary">
-                                            <i class="fas fa-server"></i> Local
-                                        </span>
-                                        {% elif respaldo.almacenamiento == 'google_drive' %}
-                                        <span class="badge bg-danger">
-                                            <i class="fab fa-google-drive"></i> Google Drive
-                                        </span>
-                                        {% elif respaldo.almacenamiento == 'usb' %}
-                                        <span class="badge bg-warning">
-                                            <i class="fas fa-usb"></i> USB
+                                        {% if respaldo.checksum %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle"></i> Verificado
                                         </span>
                                         {% else %}
-                                        <span class="badge bg-secondary">
-                                            {{ respaldo.almacenamiento or 'Local' }}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation-circle"></i> Sin verificar
                                         </span>
                                         {% endif %}
                                     </td>
@@ -203,128 +528,58 @@
                                         <div class="btn-group btn-group-sm" role="group">
                                             <!-- Verificar integridad -->
                                             <button type="button" 
-                                                    class="btn btn-outline-success verificar-respaldo" 
+                                                    class="btn btn-outline-success verificar-respaldo-btn" 
                                                     data-id="{{ respaldo.id }}"
                                                     title="Verificar integridad">
                                                 <i class="fas fa-check-circle"></i>
                                             </button>
                                             
                                             <!-- Descargar -->
+                                            {% if respaldo.almacenamiento == 'local' and respaldo.ruta_archivo %}
                                             <a href="{{ url_for('backup.descargar_respaldo', id=respaldo.id) }}" 
                                                class="btn btn-outline-primary" 
                                                title="Descargar">
                                                 <i class="fas fa-download"></i>
                                             </a>
+                                            {% else %}
+                                            <button class="btn btn-outline-secondary" disabled 
+                                                    title="No disponible para descarga">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            {% endif %}
+                                            
+                                            <!-- Copiar a USB (solo para respaldos locales) -->
+                                            {% if respaldo.almacenamiento == 'local' %}
+                                            <button type="button" 
+                                                    class="btn btn-outline-warning copiar-usb-btn" 
+                                                    data-id="{{ respaldo.id }}"
+                                                    title="Copiar a USB"
+                                                    {% if not usb_mounted %}disabled{% endif %}>
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-outline-secondary" disabled 
+                                                    title="Ya está en USB">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            {% endif %}
                                             
                                             <!-- Restaurar -->
                                             <button type="button" 
-                                                    class="btn btn-outline-warning" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#restoreModal{{ respaldo.id }}"
+                                                    class="btn btn-outline-info restaurar-respaldo-btn" 
+                                                    data-id="{{ respaldo.id }}"
+                                                    data-tipo="{{ respaldo.tipo_respaldo }}"
                                                     title="Restaurar">
                                                 <i class="fas fa-undo"></i>
                                             </button>
                                             
                                             <!-- Eliminar -->
                                             <button type="button" 
-                                                    class="btn btn-outline-danger" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#deleteModal{{ respaldo.id }}"
+                                                    class="btn btn-outline-danger eliminar-respaldo-btn" 
+                                                    data-id="{{ respaldo.id }}"
                                                     title="Eliminar">
                                                 <i class="fas fa-trash"></i>
                                             </button>
-                                        </div>
-
-                                        <!-- Modal Restaurar -->
-                                        <div class="modal fade" id="restoreModal{{ respaldo.id }}" tabindex="-1">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-warning text-white">
-                                                        <h5 class="modal-title">
-                                                            <i class="fas fa-exclamation-triangle"></i> Restaurar Respaldo
-                                                        </h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="alert alert-warning">
-                                                            <strong>¡ADVERTENCIA CRÍTICA!</strong><br>
-                                                            Esta acción restaurará la base de datos a partir del respaldo seleccionado.
-                                                            <strong>Todos los datos actuales se perderán permanentemente.</strong>
-                                                        </div>
-                                                        <p>¿Estás seguro de restaurar el respaldo <strong>#{{ respaldo.id }}</strong>?</p>
-                                                        <div class="card">
-                                                            <div class="card-body">
-                                                                <p class="mb-1"><strong>Tipo:</strong> 
-                                                                    {% if respaldo.tipo_respaldo == 'completo' %}
-                                                                        <span class="badge bg-primary">Completo</span>
-                                                                    {% elif respaldo.tipo_respaldo == 'diferencial' %}
-                                                                        <span class="badge bg-info">Diferencial</span>
-                                                                    {% elif respaldo.tipo_respaldo == 'minima_modificacion' %}
-                                                                        <span class="badge bg-success">Mínima Modificación</span>
-                                                                    {% endif %}
-                                                                </p>
-                                                                <p class="mb-1"><strong>Fecha:</strong> {{ respaldo.fecha_respaldo.strftime('%d/%m/%Y %H:%M:%S') }}</p>
-                                                                <p class="mb-1"><strong>Tamaño:</strong> 
-                                                                    {% if respaldo.tamaño_mb %}
-                                                                        {{ "%.2f"|format(respaldo.tamaño_mb) }} MB
-                                                                    {% else %}
-                                                                        N/A
-                                                                    {% endif %}
-                                                                </p>
-                                                                <p class="mb-0"><strong>Archivo:</strong> <code>{{ respaldo.ruta_archivo }}</code></p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                                            <i class="fas fa-times"></i> Cancelar
-                                                        </button>
-                                                        <form method="POST" action="{{ url_for('backup.restaurar_respaldo', id=respaldo.id) }}">
-                                                            <button type="submit" class="btn btn-warning">
-                                                                <i class="fas fa-undo"></i> Sí, restaurar base de datos
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Modal Eliminar -->
-                                        <div class="modal fade" id="deleteModal{{ respaldo.id }}" tabindex="-1">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title">
-                                                            <i class="fas fa-trash"></i> Eliminar Respaldo
-                                                        </h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>¿Estás seguro de eliminar el respaldo <strong>#{{ respaldo.id }}</strong>?</p>
-                                                        <div class="alert alert-danger">
-                                                            <i class="fas fa-exclamation-triangle"></i>
-                                                            Esta acción no se puede deshacer. El archivo de respaldo se eliminará permanentemente del servidor.
-                                                        </div>
-                                                        <div class="card">
-                                                            <div class="card-body">
-                                                                <p class="mb-1"><strong>Tipo:</strong> {{ respaldo.tipo_respaldo|title }}</p>
-                                                                <p class="mb-1"><strong>Fecha:</strong> {{ respaldo.fecha_respaldo.strftime('%d/%m/%Y %H:%M') }}</p>
-                                                                <p class="mb-0"><strong>Archivo:</strong> {{ respaldo.ruta_archivo }}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                                            <i class="fas fa-times"></i> Cancelar
-                                                        </button>
-                                                        <form method="POST" action="{{ url_for('backup.eliminar_respaldo', id=respaldo.id) }}">
-                                                            <button type="submit" class="btn btn-danger">
-                                                                <i class="fas fa-trash"></i> Sí, eliminar permanentemente
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -333,38 +588,36 @@
                         </table>
                     </div>
                     
-                    <!-- Estadísticas -->
+                    <!-- Información del sistema -->
                     <div class="row mt-4">
                         <div class="col-md-6">
                             <div class="card border-info">
                                 <div class="card-body">
-                                    <h6><i class="fas fa-chart-pie text-info"></i> Estadísticas de Respaldos</h6>
-                                    <div class="row mt-3">
-                                        <div class="col-6">
-                                            <small class="text-muted">Completos</small>
-                                            <h5 class="text-primary">
-                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'completo')|list|length }}
-                                            </h5>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Diferenciales</small>
-                                            <h5 class="text-info">
-                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'diferencial')|list|length }}
-                                            </h5>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Mínima</small>
-                                            <h5 class="text-success">
-                                                {{ respaldos|selectattr('tipo_respaldo', 'equalto', 'minima_modificacion')|list|length }}
-                                            </h5>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Total MB</small>
-                                            <h5 class="text-warning">
-                                                {{ "%.2f"|format(respaldos|sum(attribute='tamaño_mb') or 0) }}
-                                            </h5>
-                                        </div>
-                                    </div>
+                                    <h6><i class="fas fa-info-circle text-info"></i> Información del Sistema</h6>
+                                    <ul class="list-unstyled mt-2 mb-0">
+                                        <li class="mb-1">
+                                            <i class="fas fa-folder text-info me-2"></i>
+                                            <small>Carpeta local: <code>backups/</code></small>
+                                        </li>
+                                        <li class="mb-1">
+                                            <i class="fas fa-usb-drive text-warning me-2"></i>
+                                            <small>USB: 
+                                                {% if usb_mounted and usb_path %}
+                                                <code>{{ usb_path|e }}</code>
+                                                {% else %}
+                                                <span class="text-danger">No conectado</span>
+                                                {% endif %}
+                                            </small>
+                                        </li>
+                                        <li class="mb-1">
+                                            <i class="fas fa-shield-alt text-info me-2"></i>
+                                            <small>Integridad: Checksum SHA-256</small>
+                                        </li>
+                                        <li>
+                                            <i class="fas fa-compress text-info me-2"></i>
+                                            <small>Compresión: GZIP automática</small>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -372,25 +625,33 @@
                         <div class="col-md-6">
                             <div class="card border-success">
                                 <div class="card-body">
-                                    <h6><i class="fas fa-info-circle text-success"></i> Información del Sistema</h6>
-                                    <ul class="list-unstyled mt-3">
-                                        <li class="mb-2">
-                                            <i class="fas fa-folder text-success me-2"></i>
-                                            <strong>Carpeta respaldos:</strong> <code>backups/</code>
-                                        </li>
-                                        <li class="mb-2">
-                                            <i class="fas fa-database text-success me-2"></i>
-                                            <strong>Base de datos:</strong> {{ config['MYSQL_DB'] if config else 'gestion_plantas' }}
-                                        </li>
-                                        <li class="mb-2">
-                                            <i class="fas fa-shield-alt text-success me-2"></i>
-                                            <strong>Integridad:</strong> Checksum SHA-256
-                                        </li>
-                                        <li>
-                                            <i class="fas fa-compress text-success me-2"></i>
-                                            <strong>Compresión:</strong> GZIP automática
-                                        </li>
-                                    </ul>
+                                    <h6><i class="fas fa-chart-pie text-success"></i> Resumen de Estadísticas</h6>
+                                    <div class="row mt-2">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Último respaldo</small>
+                                            <strong>{{ last_backup_time }}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Total espacio</small>
+                                            <strong>{{ "%.2f"|format(respaldos|sum(attribute='tamaño_mb') or 0) }} MB</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Promedio tamaño</small>
+                                            <strong>
+                                                {% if respaldos and respaldos|length > 0 %}
+                                                    {{ "%.2f"|format((respaldos|sum(attribute='tamaño_mb') or 0) / respaldos|length) }} MB
+                                                {% else %}
+                                                    0 MB
+                                                {% endif %}
+                                            </strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Verificados</small>
+                                            <strong>
+                                                {{ respaldos|selectattr('checksum')|list|length }}/{{ respaldos|length }}
+                                            </strong>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -403,13 +664,9 @@
                         </div>
                         <h5 class="text-muted mb-3">No hay respaldos registrados</h5>
                         <p class="text-muted mb-4">Crea tu primer respaldo para proteger los datos del sistema.</p>
-                        <form method="POST" action="{{ url_for('backup.crear_respaldo') }}" class="d-inline">
-                            <input type="hidden" name="tipo" value="completo">
-                            <input type="hidden" name="almacenamiento" value="local">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-plus me-2"></i> Crear primer respaldo
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-primary btn-lg" onclick="crearRespaldo('completo')">
+                            <i class="fas fa-plus me-2"></i> Crear primer respaldo
+                        </button>
                     </div>
                     {% endif %}
                 </div>
@@ -422,221 +679,1317 @@
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-file-import"></i> Importar Respaldo
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-import"></i> Importar Respaldo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info">
-                    <strong><i class="fas fa-info-circle"></i> Información:</strong><br>
-                    Esta función permite restaurar la base de datos desde un archivo SQL.
-                    El archivo debe ser un volcado de MySQL válido (formato .sql o .sql.gz).
-                </div>
-                <form method="POST" action="{{ url_for('backup.importar_respaldo') }}" enctype="multipart/form-data">
+                <form id="importForm" action="{{ url_for('backup.importar_respaldo') }}" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="archivo_respaldo" class="form-label">Seleccionar archivo SQL</label>
-                        <input type="file" class="form-control" id="archivo_respaldo" name="archivo_respaldo" accept=".sql,.gz" required>
-                        <div class="form-text">Formatos soportados: .sql, .sql.gz (hasta 50MB)</div>
+                        <label for="archivoRespaldo" class="form-label">Seleccionar archivo</label>
+                        <input type="file" class="form-control" id="archivoRespaldo" name="archivo_respaldo" accept=".sql,.gz" required>
+                        <div class="form-text">Formatos aceptados: .sql, .gz (comprimido)</div>
                     </div>
                     <div class="mb-3">
-                        <label for="almacenamiento" class="form-label">Tipo de almacenamiento</label>
-                        <select class="form-select" id="almacenamiento" name="almacenamiento" required>
-                            <option value="local">Local (servidor)</option>
-                            <option value="google_drive">Google Drive</option>
-                            <option value="usb">USB/Disco externo</option>
+                        <label for="tipoImportacion" class="form-label">Tipo de importación</label>
+                        <select class="form-select" id="tipoImportacion" name="tipo_importacion">
+                            <option value="completo">Respaldo completo</option>
+                            <option value="diferencial">Respaldo diferencial</option>
+                            <option value="parcial">Respaldo parcial</option>
                         </select>
                     </div>
-                    <div class="alert alert-warning">
-                        <strong><i class="fas fa-exclamation-triangle"></i> ¡Precaución!</strong><br>
-                        La importación reemplazará toda la base de datos actual.
-                        Asegúrate de tener un respaldo reciente antes de continuar.
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times"></i> Cancelar
-                        </button>
-                        <button type="submit" class="btn btn-warning">
-                            <i class="fas fa-upload"></i> Importar Respaldo
-                        </button>
+                    <div class="mb-3">
+                        <label class="form-label">Almacenamiento</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="almacenamiento" id="almacenamientoLocal" value="local" checked>
+                            <label class="form-check-label" for="almacenamientoLocal">
+                                <i class="fas fa-server"></i> Local
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="almacenamiento" id="almacenamientoUSB" value="usb" {% if not usb_mounted %}disabled{% endif %}>
+                            <label class="form-check-label" for="almacenamientoUSB">
+                                <i class="fas fa-usb-drive"></i> USB {% if not usb_mounted %}(No disponible){% endif %}
+                            </label>
+                        </div>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="importForm" class="btn btn-success">Importar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Estilos adicionales -->
+<!-- Modal para restaurar respaldo -->
+<div class="modal fade" id="restoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-undo"></i> Restaurar Respaldo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas restaurar este respaldo?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Advertencia:</strong> Esta acción reemplazará todos los datos actuales con los del respaldo seleccionado.
+                </div>
+                <div id="restoreDetails"></div>
+                <form id="restoreForm" method="POST">
+                    <!-- Form will be filled by JavaScript -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmRestoreBtn">Restaurar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para eliminar respaldo -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-trash"></i> Eliminar Respaldo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar este respaldo?</p>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Advertencia:</strong> Esta acción eliminará tanto el registro como el archivo físico. No se puede deshacer.
+                </div>
+                <div id="deleteDetails"></div>
+                <form id="deleteForm" method="POST">
+                    <!-- Form will be filled by JavaScript -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
-    .card {
-        border-radius: 10px;
-        transition: transform 0.2s;
-        margin-bottom: 1rem;
-    }
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.card {
+    border-radius: 10px;
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.8em;
+}
+.table th {
+    font-weight: 600;
+    color: #495057;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+.progress {
+    border-radius: 5px;
+}
+.btn-group .btn {
+    border-radius: 4px;
+    margin: 1px;
+}
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1rem;
+    height: 1rem;
+    margin: -0.5rem 0 0 -0.5rem;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+@media (max-width: 768px) {
+    .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
     }
     .btn-group .btn {
-        border-radius: 4px;
-        margin: 1px;
+        flex: 1;
+        min-width: 40px;
+        padding: 0.25rem;
     }
-    .badge {
-        font-weight: 500;
-        padding: 0.4em 0.8em;
-    }
-    .table th {
-        font-weight: 600;
-        color: #495057;
-        border-top: none;
-    }
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 110, 253, 0.05);
-    }
-    .modal-header {
-        border-radius: 10px 10px 0 0;
-    }
-    .text-monospace {
-        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-        font-size: 0.85em;
-    }
-    .list-unstyled li {
-        padding: 0.25rem 0;
-    }
+}
 </style>
 
-<!-- Scripts -->
+<!-- JavaScript CORREGIDO con URLs correctas -->
 <script>
-// Verificar integridad de respaldo
-document.addEventListener('DOMContentLoaded', function() {
-    // Verificar integridad
-    document.querySelectorAll('.verificar-respaldo').forEach(button => {
-        button.addEventListener('click', function() {
-            const respaldoId = this.getAttribute('data-id');
-            const button = this;
-            
-            // Mostrar loading
-            const originalHTML = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            button.disabled = true;
-            
-            fetch(`/backup/verificar/${respaldoId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.estado === 'ok') {
-                        if (data.integridad) {
-                            // Mostrar SweetAlert2 de éxito
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: '✅ Integridad Verificada',
-                                    html: `
-                                        <div class="text-start">
-                                            <p><strong>ID:</strong> #${data.id}</p>
-                                            <p><strong>Archivo:</strong> <code>${data.archivo.split('/').pop()}</code></p>
-                                            <p><strong>Tamaño:</strong> ${data.tamano_mb ? data.tamano_mb.toFixed(2) + ' MB' : 'N/A'}</p>
-                                            <p><strong>Checksum:</strong> <span class="text-success">✔ Coincide</span></p>
-                                            <p><strong>Fecha creación:</strong> ${data.fecha_creacion}</p>
-                                        </div>
-                                    `,
-                                    confirmButtonText: 'OK',
-                                    confirmButtonColor: '#198754'
-                                });
-                            } else {
-                                alert('✅ Integridad verificada correctamente');
-                            }
-                        } else {
-                            // Mostrar SweetAlert2 de advertencia
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'warning',
-                                    title: '⚠️ Advertencia',
-                                    html: `
-                                        <div class="text-start">
-                                            <p><strong>ID:</strong> #${data.id}</p>
-                                            <p><strong>Archivo:</strong> <code>${data.archivo.split('/').pop()}</code></p>
-                                            <p><strong>Checksum original:</strong> <small>${data.checksum_original ? data.checksum_original.substring(0, 16) + '...' : 'N/A'}</small></p>
-                                            <p><strong>Checksum actual:</strong> <small>${data.checksum_actual ? data.checksum_actual.substring(0, 16) + '...' : 'N/A'}</small></p>
-                                            <p class="text-danger mt-2"><strong>✗ NO COINCIDEN</strong></p>
-                                            <p class="text-muted small mt-2">El archivo puede estar corrupto o haber sido modificado.</p>
-                                        </div>
-                                    `,
-                                    confirmButtonText: 'Entendido',
-                                    confirmButtonColor: '#fd7e14'
-                                });
-                            } else {
-                                alert('⚠️ Advertencia: El checksum no coincide');
-                            }
-                        }
-                    } else {
-                        // Mostrar SweetAlert2 de error
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: '❌ Error',
-                                text: data.mensaje || 'Error al verificar el respaldo',
-                                confirmButtonText: 'OK',
-                                confirmButtonColor: '#dc3545'
-                            });
-                        } else {
-                            alert('❌ Error: ' + (data.mensaje || 'Error al verificar el respaldo'));
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    // Mostrar SweetAlert2 de error de conexión
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: '❌ Error de conexión',
-                            text: 'No se pudo conectar con el servidor para verificar el respaldo',
-                            confirmButtonText: 'OK',
-                            confirmButtonColor: '#dc3545'
-                        });
-                    } else {
-                        alert('❌ Error de conexión: No se pudo verificar el respaldo');
-                    }
-                })
-                .finally(() => {
-                    // Restaurar botón
-                    button.innerHTML = originalHTML;
-                    button.disabled = false;
+// Variables globales
+let usarUSB = {% if usb_mounted %}true{% else %}false{% endif %};
+
+// ========== FUNCIONES CORREGIDAS CON URLs ESPAÑOL ==========
+
+// Buscar USB
+function buscarUSB() {
+    Swal.fire({
+        title: '🔍 Buscando USB...',
+        html: '<div class="spinner-border text-primary" role="status"></div><p class="mt-3">Escaneando dispositivos conectados...</p>',
+        allowOutsideClick: false,
+        showConfirmButton: false
+    });
+    
+    // URL CORREGIDA: /respaldos/detectar-usb
+    fetch('/respaldos/detectar-usb')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.conectado) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '✅ USB Detectado',
+                        html: `<div class="text-start">
+                            <p><strong>Dispositivo:</strong> ${escapeHtml(data.ruta)}</p>
+                            <p><strong>Espacio libre:</strong> ${data.espacio_libre} GB</p>
+                            <p><strong>Espacio total:</strong> ${data.espacio_total} GB</p>
+                        </div>`,
+                        confirmButtonText: 'Continuar'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '❌ USB No Detectado',
+                        html: `<div class="text-start">
+                            <p>No se encontraron dispositivos USB conectados.</p>
+                            <div class="alert alert-info small mt-2">
+                                <strong>Consejos:</strong>
+                                <ul class="mb-0">
+                                    <li>Conecta una unidad USB a un puerto disponible</li>
+                                    <li>Espera 5-10 segundos antes de buscar nuevamente</li>
+                                    <li>Verifica que el USB esté formateado correctamente</li>
+                                </ul>
+                            </div>
+                        </div>`,
+                        confirmButtonText: 'Entendido'
+                    });
+                }
+            } else {
+                throw new Error(data.message || 'Error en la detección');
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message
+            });
+        });
+}
+
+// Forzar búsqueda de USB
+function forzarBusquedaUSB() {
+    Swal.fire({
+        title: '⚠️ Forzar búsqueda USB',
+        text: 'Esto recargará la página y forzará una nueva detección de USB.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Forzar búsqueda',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // URL CORREGIDA: /respaldos/forzar-detectar-usb
+            window.location.href = '/respaldos/forzar-detectar-usb';
+        }
+    });
+}
+
+// Estado USB detallado
+function estadoUSBPormenorizado() {
+    Swal.fire({
+        title: '📊 Obteniendo información USB...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // URL CORREGIDA: /respaldos/estado-usb-detallado
+    fetch('/respaldos/estado-usb-detallado')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.conectado) {
+                let html = `<div class="text-start">
+                    <h6 class="border-bottom pb-2">📁 Información del dispositivo</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Ruta:</strong></td><td><code>${escapeHtml(data.dispositivo.ruta)}</code></td></tr>
+                        <tr><td><strong>Sistema:</strong></td><td>${escapeHtml(data.dispositivo.sistema)}</td></tr>
+                        <tr><td><strong>Espacio total:</strong></td><td>${data.dispositivo.espacio_total_gb} GB</td></tr>
+                        <tr><td><strong>Espacio usado:</strong></td><td>${data.dispositivo.espacio_usado_gb} GB (${data.dispositivo.porcentaje_usado}%)</td></tr>
+                        <tr><td><strong>Espacio libre:</strong></td><td>${data.dispositivo.espacio_libre_gb} GB (${data.dispositivo.porcentaje_libre}%)</td></tr>
+                    </table>
+                    
+                    <h6 class="border-bottom pb-2 mt-3">💾 Respaldos en USB</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Total respaldos:</strong></td><td>${data.respaldos.total_en_usb}</td></tr>
+                        <tr><td><strong>Espacio utilizado:</strong></td><td>${data.respaldos.espacio_utilizado_mb} MB (${data.respaldos.espacio_utilizado_gb} GB)</td></tr>
+                        <tr><td><strong>Porcentaje del USB:</strong></td><td>${data.respaldos.porcentaje_espacio_usb}%</td></tr>
+                    </table>`;
+                
+                if (data.recomendaciones && data.recomendaciones.length > 0) {
+                    html += `<h6 class="border-bottom pb-2 mt-3">💡 Recomendaciones</h6><ul>`;
+                    data.recomendaciones.forEach(rec => {
+                        html += `<li>${rec}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+                
+                html += `</div>`;
+                
+                Swal.fire({
+                    title: '📊 Estado USB Detallado',
+                    html: html,
+                    width: 600,
+                    confirmButtonText: 'Cerrar'
                 });
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'USB No Conectado',
+                    text: 'No hay dispositivos USB conectados para mostrar información.'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo obtener información del USB: ' + error.message
+            });
+        });
+}
+
+// Probar permisos USB
+function probarPermisosUSB() {
+    Swal.fire({
+        title: '🔧 Probando permisos USB...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // URL CORREGIDA: /respaldos/test-usb-permisos
+    fetch('/respaldos/test-usb-permisos')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = `<div class="text-start">
+                    <h6 class="border-bottom pb-2">📍 Información del USB</h6>
+                    <p><strong>Ruta:</strong> <code>${escapeHtml(data.usb_path)}</code></p>
+                    
+                    <h6 class="border-bottom pb-2 mt-3">🔐 Permisos</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Lectura de espacio:</strong></td>
+                            <td>${data.permisos.lectura_espacio ? '✅ Sí' : '❌ No'}</td></tr>
+                        <tr><td><strong>Escritura de archivos:</strong></td>
+                            <td>${data.permisos.escritura_archivo ? '✅ Sí' : '❌ No'}</td></tr>
+                        <tr><td><strong>Creación de carpetas:</strong></td>
+                            <td>${data.permisos.creacion_carpeta ? '✅ Sí' : '❌ No'}</td></tr>
+                        <tr><td><strong>Lectura de archivos:</strong></td>
+                            <td>${data.permisos.lectura_archivo ? '✅ Sí' : '❌ No'}</td></tr>
+                    </table>`;
+                
+                if (data.espacio_total_gb) {
+                    html += `<h6 class="border-bottom pb-2 mt-3">💾 Espacio disponible</h6>
+                            <p><strong>Total:</strong> ${data.espacio_total_gb} GB</p>
+                            <p><strong>Libre:</strong> ${data.espacio_libre_gb} GB</p>`;
+                }
+                
+                html += `</div>`;
+                
+                Swal.fire({
+                    title: '✅ Prueba de permisos completada',
+                    html: html,
+                    width: 500,
+                    confirmButtonText: 'Cerrar'
+                });
+            } else {
+                throw new Error(data.message || 'Error en la prueba');
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error en la prueba',
+                text: error.message
+            });
+        });
+}
+
+// Debug de detección USB
+function debugUSBDeteccion() {
+    Swal.fire({
+        title: '🐛 Debug de detección USB',
+        html: '<p>Obteniendo información de diagnóstico...</p>',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // URL CORREGIDA: /respaldos/debug-usb-detection
+    fetch('/respaldos/debug-usb-detection')
+        .then(response => response.json())
+        .then(data => {
+            let html = `<div class="text-start" style="max-height: 400px; overflow-y: auto;">
+                <h6 class="border-bottom pb-2">📊 Información del sistema</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Sistema operativo:</strong></td><td>${escapeHtml(data.sistema)}</td></tr>
+                    <tr><td><strong>Python version:</strong></td><td>${escapeHtml(data.python_version)}</td></tr>
+                    <tr><td><strong>Directorio actual:</strong></td><td><code>${escapeHtml(data.directorio_actual)}</code></td></tr>
+                    <tr><td><strong>Usuario OS:</strong></td><td>${escapeHtml(data.usuario_os || 'N/A')}</td></tr>
+                </table>
+                
+                <h6 class="border-bottom pb-2 mt-3">💾 Particiones detectadas</h6>`;
+            
+            if (data.particiones && data.particiones.length > 0) {
+                html += `<div class="table-responsive"><table class="table table-sm table-striped">`;
+                html += `<tr><th>Dispositivo</th><th>Punto de montaje</th><th>Tipo</th><th>Opciones</th><th>Espacio libre</th><th>Espacio total</th></tr>`;
+                data.particiones.forEach(part => {
+                    html += `<tr>
+                        <td><code>${escapeHtml(part.dispositivo || 'N/A')}</code></td>
+                        <td><code>${escapeHtml(part.punto_montaje || 'N/A')}</code></td>
+                        <td>${escapeHtml(part.tipo || 'N/A')}</td>
+                        <td>${escapeHtml(part.opciones || 'N/A')}</td>
+                        <td>${part.espacio_libre_gb || part.error ? 'N/A' : part.espacio_libre_gb + ' GB'}</td>
+                        <td>${part.espacio_total_gb || part.error ? 'N/A' : part.espacio_total_gb + ' GB'}</td>
+                    </tr>`;
+                });
+                html += `</table></div>`;
+            } else {
+                html += `<p>No se encontraron particiones</p>`;
+            }
+            
+            html += `<h6 class="border-bottom pb-2 mt-3">🔍 Resultado de detección</h6>`;
+            html += `<pre class="bg-light p-2 rounded" style="font-size: 12px;">${escapeHtml(JSON.stringify(data.proceso_deteccion, null, 2))}</pre>`;
+            
+            html += `</div>`;
+            
+            Swal.fire({
+                title: '🔧 Debug USB',
+                html: html,
+                width: 800,
+                confirmButtonText: 'Cerrar'
+            });
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message
+            });
+        });
+}
+
+// ========== FUNCIONES DE COPIA A USB CORREGIDAS ==========
+
+// Mostrar opciones de copia a USB
+function mostrarOpcionesCopiaUSB() {
+    if (!{% if usb_mounted %}true{% else %}false{% endif %}) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'USB No Disponible',
+            text: 'Conecta una unidad USB antes de intentar copiar respaldos.',
+            confirmButtonText: 'Buscar USB',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                buscarUSB();
+            }
+        });
+        return;
+    }
+    
+    Swal.fire({
+        title: '📂 Copiar a USB',
+        text: 'Selecciona qué deseas copiar:',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Todos los respaldos locales',
+        cancelButtonText: 'Un respaldo específico',
+        showDenyButton: true,
+        denyButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            copiarTodosRespaldosUSB();
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            seleccionarRespaldoEspecificoUSB();
+        }
+    });
+}
+
+// Ejecutar copia a USB - URL CORREGIDA
+function ejecutarCopiaUSB(datos) {
+    console.log('Ejecutando copia USB con datos:', datos);
+    
+    const btnCopiarUSB = document.getElementById('btnCopiarUSB');
+    const originalHTML = btnCopiarUSB ? btnCopiarUSB.innerHTML : null;
+    
+    if (btnCopiarUSB) {
+        btnCopiarUSB.classList.add('btn-loading');
+        btnCopiarUSB.disabled = true;
+    }
+    
+    Swal.fire({
+        title: '⏳ Copiando a USB...',
+        html: `<div class="text-center">
+            <div class="spinner-border text-warning mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+            <p>Procesando solicitud...</p>
+            <div class="progress mt-3" style="height: 5px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+            </div>
+        </div>`,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        width: 400
+    });
+    
+    // Configurar headers correctamente
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+    
+    // Añadir CSRF token si es necesario
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+    
+    // URL CORREGIDA: /respaldos/copiar-a-usb
+    fetch('/respaldos/copiar-a-usb', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(datos),
+        credentials: 'same-origin'
+    })
+    .then(async response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        // Primero intentar como JSON
+        try {
+            const data = await response.json();
+            console.log('Response JSON:', data);
+            
+            if (!response.ok) {
+                throw new Error(data.message || data.error || `Error ${response.status}`);
+            }
+            
+            return data;
+        } catch (jsonError) {
+            // Si falla el JSON, obtener como texto
+            const text = await response.text();
+            console.log('Response text (first 500 chars):', text.substring(0, 500));
+            
+            // Verificar si es HTML (posible error 404/500)
+            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<!doctype')) {
+                throw new Error('El servidor devolvió una página HTML. Verifica la ruta /respaldos/copiar-a-usb.');
+            }
+            
+            throw new Error(`Respuesta inválida: ${text.substring(0, 100)}...`);
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            let html = `<div class="text-start">`;
+            html += `<p class="text-success"><strong>✅ ${data.message}</strong></p>`;
+            
+            if (data.copiados) {
+                if (Array.isArray(data.copiados)) {
+                    html += `<p><strong>Copiados exitosamente:</strong> ${data.copiados.length} respaldo(s)</p>`;
+                    if (data.copiados.length > 0) {
+                        html += `<ul class="small">`;
+                        data.copiados.slice(0, 3).forEach(item => {
+                            html += `<li>${escapeHtml(item.archivo || item.id_nuevo)}</li>`;
+                        });
+                        if (data.copiados.length > 3) {
+                            html += `<li>... y ${data.copiados.length - 3} más</li>`;
+                        }
+                        html += `</ul>`;
+                    }
+                } else if (typeof data.copiados === 'number') {
+                    html += `<p><strong>Copiados exitosamente:</strong> ${data.copiados} respaldo(s)</p>`;
+                }
+            }
+            
+            if (data.tamaño_total_mb) {
+                html += `<p><strong>Tamaño total copiado:</strong> ${data.tamaño_total_mb} MB</p>`;
+            }
+            
+            if (data.errores && data.errores.length > 0) {
+                html += `<p class="text-danger"><strong>Errores:</strong> ${data.errores.length}</p>`;
+            }
+            
+            html += `</div>`;
+            
+            Swal.fire({
+                icon: 'success',
+                title: '¡Copiado exitoso!',
+                html: html,
+                confirmButtonText: 'OK',
+                width: 500
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            throw new Error(data.message || 'Error desconocido');
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        
+        let mensaje = error.message;
+        let sugerencias = '';
+        
+        if (error.message.includes('404') || error.message.includes('página HTML')) {
+            mensaje = 'Ruta no encontrada. Verifica que la ruta /respaldos/copiar-a-usb exista.';
+            sugerencias = 'La ruta /respaldos/copiar-a-usb no está disponible en el servidor.';
+        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+            mensaje = 'Error de conexión con el servidor';
+            sugerencias = 'Verifica tu conexión a internet y vuelve a intentar.';
+        } else if (error.message.includes('403')) {
+            mensaje = 'Acceso denegado';
+            sugerencias = 'No tienes permisos para realizar esta acción.';
+        }
+        
+        Swal.fire({
+            icon: 'error',
+            title: '❌ Error al Copiar',
+            html: `<div class="text-start">
+                <p><strong>${escapeHtml(mensaje)}</strong></p>
+                ${sugerencias ? `<div class="alert alert-warning small mt-2">${escapeHtml(sugerencias)}</div>` : ''}
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="probarRutaUSB()">
+                        <i class="fas fa-link"></i> Probar ruta
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="debugRutas()">
+                        <i class="fas fa-bug"></i> Debug rutas
+                    </button>
+                </div>
+                <details class="mt-2">
+                    <summary class="small text-muted">Detalles técnicos</summary>
+                    <pre class="small bg-light p-2 mt-1">${escapeHtml(error.message)}</pre>
+                </details>
+            </div>`,
+            confirmButtonText: 'Entendido',
+            width: 600
+        });
+    })
+    .finally(() => {
+        if (btnCopiarUSB) {
+            btnCopiarUSB.classList.remove('btn-loading');
+            btnCopiarUSB.disabled = false;
+            if (originalHTML) btnCopiarUSB.innerHTML = originalHTML;
+        }
+    });
+}
+
+// Probar ruta USB - URL CORREGIDA
+function probarRutaUSB() {
+    Swal.fire({
+        title: '🔗 Probando ruta /respaldos/copiar-a-usb...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('/respaldos/copiar-a-usb', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({test: true}),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('Test response status:', response.status);
+        return response.text().then(text => ({status: response.status, text: text.substring(0, 500)}));
+    })
+    .then(result => {
+        let html = `<div class="text-start">
+            <p><strong>Estado HTTP:</strong> ${result.status}</p>
+            <p><strong>Respuesta:</strong></p>
+            <pre class="bg-light p-2 small">${escapeHtml(result.text)}</pre>`;
+        
+        if (result.status === 404) {
+            html += `<div class="alert alert-danger small mt-2">
+                <strong>Error 404:</strong> La ruta no existe. Verifica:
+                <ul class="mb-0">
+                    <li>Que el blueprint 'backup_bp' esté registrado con url_prefix='/respaldos'</li>
+                    <li>Que la ruta '/copiar-a-usb' esté definida en routes.py</li>
+                    <li>Que el servidor Flask esté ejecutándose</li>
+                </ul>
+            </div>`;
+        } else if (result.status === 405) {
+            html += `<div class="alert alert-warning small mt-2">
+                <strong>Error 405:</strong> Método no permitido. La ruta existe pero no acepta POST.
+            </div>`;
+        } else if (result.status === 200) {
+            html += `<div class="alert alert-success small mt-2">
+                ✅ La ruta responde correctamente.
+            </div>`;
+        }
+        
+        html += `</div>`;
+        
+        Swal.fire({
+            title: '📊 Resultado de prueba',
+            html: html,
+            width: 600,
+            confirmButtonText: 'Cerrar'
+        });
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error en la prueba',
+            text: error.message
         });
     });
+}
 
-    // Confirmar eliminación de respaldo
-    document.querySelectorAll('form[action*="eliminar"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const button = this.querySelector('button[type="submit"]');
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
-            button.disabled = true;
-            // No prevenir el envío, solo mostrar loading
+// Debug de rutas - URLs CORREGIDAS
+function debugRutas() {
+    Swal.fire({
+        title: '🐛 Debug de rutas disponibles...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Probar varias rutas CORREGIDAS
+    const rutas = [
+        '/respaldos/copiar-a-usb',
+        '/respaldos/detectar-usb',
+        '/respaldos/',
+        '/respaldos/crear/completo',
+        '/respaldos/verificar-todos'
+    ];
+    
+    const resultados = [];
+    
+    // Función para probar cada ruta
+    const probarRuta = (ruta) => {
+        return fetch(ruta, {
+            method: 'HEAD',
+            credentials: 'same-origin'
+        })
+        .then(response => ({
+            ruta: ruta,
+            status: response.status,
+            ok: response.ok
+        }))
+        .catch(error => ({
+            ruta: ruta,
+            status: 'ERROR',
+            error: error.message
+        }));
+    };
+    
+    // Probar todas las rutas
+    Promise.all(rutas.map(probarRuta))
+        .then(results => {
+            let html = `<div class="text-start">
+                <h6 class="border-bottom pb-2">🔍 Rutas disponibles en /respaldos/</h6>
+                <table class="table table-sm">
+                    <tr><th>Ruta</th><th>Estado</th></tr>`;
+            
+            results.forEach(result => {
+                const estado = result.ok ? 
+                    `<span class="badge bg-success">✅ ${result.status}</span>` :
+                    `<span class="badge bg-danger">❌ ${result.status || result.error}</span>`;
+                
+                html += `<tr>
+                    <td><code>${escapeHtml(result.ruta)}</code></td>
+                    <td>${estado}</td>
+                </tr>`;
+            });
+            
+            html += `</table>
+                <div class="alert alert-info small mt-2">
+                    <strong>Consejos:</strong>
+                    <ul class="mb-0">
+                        <li>Asegúrate de que el blueprint 'backup_bp' esté registrado en tu app</li>
+                        <li>Verifica que todas las rutas tengan los decoradores correctos</li>
+                        <li>Reinicia el servidor Flask si hiciste cambios recientes</li>
+                    </ul>
+                </div>
+            </div>`;
+            
+            Swal.fire({
+                title: '🔧 Debug de rutas',
+                html: html,
+                width: 700,
+                confirmButtonText: 'Cerrar'
+            });
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message
+            });
+        });
+}
+
+// ========== FUNCIONES DE CREACIÓN DE RESPALDOS CORREGIDAS ==========
+
+// Crear respaldo - URLs CORREGIDAS
+function crearRespaldo(tipo) {
+    if (usarUSB && !{% if usb_mounted %}true{% else %}false{% endif %}) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'USB No Disponible',
+            text: 'Desactiva el almacenamiento USB o conecta una unidad USB.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    Swal.fire({
+        title: `Crear respaldo ${tipo}`,
+        html: `<div class="text-start">
+            <p>¿Deseas crear un respaldo ${tipo}?</p>
+            <div class="alert alert-info small">
+                <i class="fas fa-info-circle"></i>
+                ${tipo === 'completo' ? 
+                  'Se respaldará toda la base de datos.' : 
+                  'Se respaldarán solo los cambios desde el último respaldo completo.'}
+                <br>
+                <strong>Almacenamiento:</strong> ${usarUSB ? 'USB' : 'Local'}
+            </div>
+        </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, crear',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            crearRespaldoConfirmado(tipo);
+        }
+    });
+}
+
+function crearRespaldoConfirmado(tipo) {
+    // URL CORREGIDA: /respaldos/crear/completo o /respaldos/crear/diferencial
+    const url = tipo === 'completo' ? 
+        '/respaldos/crear/completo' : 
+        '/respaldos/crear/diferencial';
+    
+    Swal.fire({
+        title: `⏳ Creando respaldo ${tipo}...`,
+        html: `<div class="text-center">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+            <p>Procesando solicitud...</p>
+            <div class="progress mt-3" style="height: 5px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+            </div>
+        </div>`,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        width: 400
+    });
+    
+    const formData = new FormData();
+    formData.append('almacenamiento', usarUSB ? 'usb' : 'local');
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(async response => {
+        const text = await response.text();
+        let data;
+        
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error('Respuesta inválida del servidor');
+        }
+        
+        if (!response.ok) {
+            throw new Error(data.message || `Error ${response.status}`);
+        }
+        
+        return data;
+    })
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '✅ ¡Éxito!',
+                html: `<div class="text-start">
+                    <p><strong>${data.message}</strong></p>
+                    <table class="table table-sm">
+                        <tr><td><strong>Tipo:</strong></td><td>${data.tipo}</td></tr>
+                        <tr><td><strong>Tamaño:</strong></td><td>${data.tamaño} MB</td></tr>
+                        <tr><td><strong>Almacenamiento:</strong></td><td>${usarUSB ? 'USB' : 'Local'}</td></tr>
+                        <tr><td><strong>Fecha:</strong></td><td>${data.fecha}</td></tr>
+                    </table>
+                </div>`,
+                confirmButtonText: 'OK',
+                width: 500
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            throw new Error(data.message || 'Error desconocido');
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: '❌ Error',
+            html: `<div class="text-start">
+                <p><strong>${escapeHtml(error.message)}</strong></p>
+                <div class="alert alert-warning small mt-2">
+                    <strong>Solución de problemas:</strong>
+                    <ul class="mb-0">
+                        <li>Verifica que haya espacio disponible en el destino</li>
+                        <li>Asegúrate de tener permisos de escritura</li>
+                        <li>Revisa que la base de datos esté accesible</li>
+                    </ul>
+                </div>
+            </div>`,
+            confirmButtonText: 'Entendido'
         });
     });
+}
 
-    // Confirmar restauración de respaldo
-    document.querySelectorAll('form[action*="restaurar"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const button = this.querySelector('button[type="submit"]');
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restaurando...';
-            button.disabled = true;
-            // No prevenir el envío, solo mostrar loading
+// Verificar todos los respaldos - URL CORREGIDA
+function verificarTodosRespaldos() {
+    Swal.fire({
+        title: '🔍 Verificando todos los respaldos...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // URL CORREGIDA: /respaldos/verificar-todos
+    fetch('/respaldos/verificar-todos')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = `<div class="text-start">
+                    <h6 class="border-bottom pb-2">📊 Resultados de verificación</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Total respaldos:</strong></td><td>${data.total}</td></tr>
+                        <tr><td><strong>Verificados correctamente:</strong></td><td class="text-success">${data.verificados_count} (${data.porcentaje_exito}%)</td></tr>
+                        <tr><td><strong>Con errores:</strong></td><td class="text-danger">${data.errores_count}</td></tr>
+                    </table>`;
+                
+                if (data.resumen.total_mb) {
+                    html += `<h6 class="border-bottom pb-2 mt-3">💾 Uso de espacio</h6>
+                            <p><strong>Total:</strong> ${data.resumen.total_mb} MB (${data.resumen.total_gb} GB)</p>`;
+                    
+                    if (data.resumen.por_almacenamiento && Object.keys(data.resumen.por_almacenamiento).length > 0) {
+                        html += `<p><strong>Por almacenamiento:</strong></p><ul>`;
+                        for (const [almac, count] of Object.entries(data.resumen.por_almacenamiento)) {
+                            html += `<li>${almac}: ${count} respaldo(s)</li>`;
+                        }
+                        html += `</ul>`;
+                    }
+                }
+                
+                if (data.errores_count > 0) {
+                    html += `<h6 class="border-bottom pb-2 mt-3 text-danger">⚠️ Errores encontrados</h6>`;
+                    html += `<p>${data.errores_count} respaldo(s) presentaron problemas. Revisa los detalles en la consola.</p>`;
+                }
+                
+                html += `</div>`;
+                
+                Swal.fire({
+                    title: '✅ Verificación completada',
+                    html: html,
+                    width: 500,
+                    confirmButtonText: 'Cerrar'
+                });
+            } else {
+                throw new Error(data.message || 'Error en la verificación');
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message
+            });
         });
+}
+
+// ========== FUNCIONES AUXILIARES (mantener igual) ==========
+
+// Función para escapar HTML (seguridad XSS)
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Alternar almacenamiento USB
+function alternarAlmacenamientoUSB() {
+    const toggle = document.getElementById('usbToggle');
+    usarUSB = toggle.checked;
+    
+    if (usarUSB && !{% if usb_mounted %}true{% else %}false{% endif %}) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'USB No Disponible',
+            text: 'Conecta una unidad USB antes de activar esta opción.',
+            confirmButtonText: 'Buscar USB',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                buscarUSB();
+            } else {
+                toggle.checked = false;
+                usarUSB = false;
+            }
+        });
+    } else {
+        const estado = usarUSB ? 'activado' : 'desactivado';
+        const mensaje = usarUSB ? 
+            'Los nuevos respaldos se guardarán en la unidad USB.' :
+            'Los nuevos respaldos se guardarán localmente.';
+        
+        Swal.fire({
+            icon: usarUSB ? 'success' : 'info',
+            title: `Almacenamiento USB ${estado}`,
+            text: mensaje,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    }
+}
+
+// Aplicar filtros
+function aplicarFiltros() {
+    const searchTerm = document.getElementById('searchBackup').value.toLowerCase();
+    const typeFilter = document.getElementById('filterType').value;
+    const storageFilter = document.getElementById('filterStorage').value;
+    const integrityFilter = document.getElementById('filterIntegrity').value;
+    
+    const backupRows = document.querySelectorAll('.backup-row');
+    let visibleCount = 0;
+    
+    backupRows.forEach(row => {
+        const type = row.getAttribute('data-type');
+        const storage = row.getAttribute('data-storage');
+        const integrity = row.getAttribute('data-integrity');
+        const name = row.getAttribute('data-name').toLowerCase();
+        const id = row.getAttribute('data-id');
+        
+        let show = true;
+        
+        // Filtrar por búsqueda
+        if (searchTerm && !name.includes(searchTerm) && !id.includes(searchTerm)) {
+            show = false;
+        }
+        
+        // Filtrar por tipo
+        if (typeFilter !== 'all') {
+            if (typeFilter === 'completo' && !type.includes('completo')) {
+                show = false;
+            } else if (typeFilter === 'diferencial' && !type.includes('diferencial')) {
+                show = false;
+            } else if (typeFilter === 'copia_usb' && !type.includes('copia_usb')) {
+                show = false;
+            } else if (typeFilter === 'importado' && !type.includes('importado')) {
+                show = false;
+            }
+        }
+        
+        // Filtrar por almacenamiento
+        if (storageFilter !== 'all' && storage !== storageFilter) {
+            show = false;
+        }
+        
+        // Filtrar por integridad
+        if (integrityFilter !== 'all' && integrity !== integrityFilter) {
+            show = false;
+        }
+        
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    // Actualizar contador
+    document.getElementById('filteredBackupsBadge').textContent = `Mostrando: ${visibleCount}`;
+}
+
+// Limpiar filtros
+function limpiarFiltros() {
+    document.getElementById('searchBackup').value = '';
+    document.getElementById('filterType').value = 'all';
+    document.getElementById('filterStorage').value = 'all';
+    document.getElementById('filterIntegrity').value = 'all';
+    aplicarFiltros();
+}
+
+// Refrescar lista
+function refrescarLista() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.classList.add('btn-loading');
+        refreshBtn.disabled = true;
+        
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+}
+
+// Copiar respaldo individual desde botón en tabla
+function copiarRespaldoIndividual(respaldoId, buttonElement) {
+    if (!usarUSB) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'USB Desactivado',
+            text: 'Activa el almacenamiento en USB primero',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    const fila = document.querySelector(`.backup-row[data-id="${respaldoId}"]`);
+    const nombre = fila ? fila.getAttribute('data-name') : 'Respaldo #' + respaldoId;
+    const tipo = fila ? fila.getAttribute('data-type') : 'Desconocido';
+    
+    Swal.fire({
+        title: '📤 Copiar a USB',
+        html: `<div class="text-start">
+            <p><strong>¿Copiar este respaldo al USB?</strong></p>
+            <table class="table table-sm">
+                <tr><td><strong>ID:</strong></td><td>#${respaldoId}</td></tr>
+                <tr><td><strong>Tipo:</strong></td><td>${tipo}</td></tr>
+                <tr><td><strong>Archivo:</strong></td><td><code>${escapeHtml(nombre)}</code></td></tr>
+            </table>
+        </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Copiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            buttonElement.disabled = true;
+            
+            ejecutarCopiaUSB({ respaldo_id: respaldoId })
+                .finally(() => {
+                    buttonElement.innerHTML = originalHTML;
+                    buttonElement.disabled = false;
+                });
+        }
+    });
+}
+
+// Copiar todos los respaldos locales a USB
+function copiarTodosRespaldosUSB() {
+    const respaldosLocales = document.querySelectorAll('.backup-row[data-storage="local"]').length;
+    
+    if (respaldosLocales === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No hay respaldos locales',
+            text: 'No se encontraron respaldos locales para copiar.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    Swal.fire({
+        title: '⚠️ Confirmar copia masiva',
+        html: `<div class="text-start">
+            <p><strong>¿Copiar TODOS los respaldos locales al USB?</strong></p>
+            <div class="alert alert-warning small">
+                <i class="fas fa-info-circle"></i>
+                Esta operación copiará <strong>${respaldosLocales} respaldo(s)</strong> al USB.
+            </div>
+            <ul class="small text-muted">
+                <li>Se verificará la integridad de cada archivo</li>
+                <li>Se calcularán nuevos checksums SHA-256</li>
+                <li>Se mantendrán los registros originales</li>
+                <li>El proceso puede tomar varios minutos</li>
+            </ul>
+        </div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, copiar todo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ffc107'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            ejecutarCopiaUSB({ copiar_todos: true });
+        }
+    });
+}
+
+// Seleccionar respaldo específico para copiar a USB
+function seleccionarRespaldoEspecificoUSB() {
+    const respaldosLocales = Array.from(document.querySelectorAll('.backup-row[data-storage="local"]'));
+    
+    if (respaldosLocales.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No hay respaldos locales',
+            text: 'No se encontraron respaldos locales para copiar.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    const opciones = {};
+    respaldosLocales.forEach(fila => {
+        const id = fila.getAttribute('data-id');
+        const nombre = fila.getAttribute('data-name') || 'Sin nombre';
+        const tipo = fila.getAttribute('data-type');
+        opciones[id] = `#${id} - ${tipo} - ${nombre.substring(0, 40)}${nombre.length > 40 ? '...' : ''}`;
+    });
+    
+    Swal.fire({
+        title: '🔍 Seleccionar respaldo',
+        input: 'select',
+        inputOptions: opciones,
+        inputPlaceholder: 'Selecciona un respaldo',
+        showCancelButton: true,
+        confirmButtonText: 'Continuar',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Debes seleccionar un respaldo';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            const fila = document.querySelector(`.backup-row[data-id="${result.value}"]`);
+            const nombre = fila.getAttribute('data-name');
+            const tipo = fila.getAttribute('data-type');
+            
+            Swal.fire({
+                title: '⚠️ Confirmar copia',
+                html: `<div class="text-start">
+                    <p><strong>¿Copiar este respaldo al USB?</strong></p>
+                    <table class="table table-sm">
+                        <tr><td><strong>ID:</strong></td><td>#${result.value}</td></tr>
+                        <tr><td><strong>Tipo:</strong></td><td>${tipo}</td></tr>
+                        <tr><td><strong>Archivo:</strong></td><td><code>${escapeHtml(nombre)}</code></td></tr>
+                        <tr><td><strong>Destino:</strong></td><td><code>{{ usb_path|e if usb_path else 'USB' }}</code></td></tr>
+                    </table>
+                </div>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, copiar',
+                cancelButtonText: 'Cancelar'
+            }).then((confirmResult) => {
+                if (confirmResult.isConfirmed) {
+                    ejecutarCopiaUSB({ respaldo_id: result.value });
+                }
+            });
+        }
+    });
+}
+
+// ========== INICIALIZACIÓN ==========
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Backup Manager cargado - Rutas en español');
+    
+    // Configurar event listeners
+    document.getElementById('searchBackup').addEventListener('input', aplicarFiltros);
+    document.getElementById('filterType').addEventListener('change', aplicarFiltros);
+    document.getElementById('filterStorage').addEventListener('change', aplicarFiltros);
+    document.getElementById('filterIntegrity').addEventListener('change', aplicarFiltros);
+    
+    // Event delegation para botones de acción
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('button');
+        if (!target) return;
+        
+        // Copiar a USB (individual)
+        if (target.classList.contains('copiar-usb-btn') && !target.disabled) {
+            e.preventDefault();
+            const respaldoId = target.getAttribute('data-id');
+            copiarRespaldoIndividual(respaldoId, target);
+        }
+        
+        // Verificar integridad (placeholder)
+        if (target.classList.contains('verificar-respaldo-btn')) {
+            e.preventDefault();
+            const respaldoId = target.getAttribute('data-id');
+            Swal.fire({
+                title: 'Verificación individual',
+                text: 'Funcionalidad en desarrollo',
+                icon: 'info'
+            });
+        }
+        
+        // Restaurar (placeholder)
+        if (target.classList.contains('restaurar-respaldo-btn')) {
+            e.preventDefault();
+            const respaldoId = target.getAttribute('data-id');
+            Swal.fire({
+                title: 'Restauración',
+                text: 'Funcionalidad en desarrollo para respaldo ' + respaldoId,
+                icon: 'info'
+            });
+        }
+        
+        // Eliminar (placeholder)
+        if (target.classList.contains('eliminar-respaldo-btn')) {
+            e.preventDefault();
+            const respaldoId = target.getAttribute('data-id');
+            Swal.fire({
+                title: 'Eliminación',
+                text: 'Funcionalidad en desarrollo',
+                icon: 'info'
+            });
+        }
+    });
+    
+    // Aplicar filtros iniciales
+    aplicarFiltros();
+    
+    // Configurar tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
 </script>
-
-<!-- Incluir SweetAlert2 (si no está incluido en base.html) -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<!-- Incluir FontAwesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}

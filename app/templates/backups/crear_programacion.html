@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Programación de Respaldo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-md-8 offset-md-2 col-lg-6 offset-lg-3">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-clock text-primary"></i> Nueva Programación de Respaldo
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('backup.crear_programacion') }}" id="programacionForm">
+                        <!-- Tipo de respaldo -->
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Respaldo *</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_respaldo" 
+                                               id="tipoCompleto" value="completo" checked>
+                                        <label class="form-check-label" for="tipoCompleto">
+                                            <i class="fas fa-database text-primary"></i> Completo
+                                            <small class="d-block text-muted">Respaldar toda la base de datos</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_respaldo" 
+                                               id="tipoDiferencial" value="diferencial">
+                                        <label class="form-check-label" for="tipoDiferencial">
+                                            <i class="fas fa-exchange-alt text-info"></i> Diferencial
+                                            <small class="d-block text-muted">Solo cambios desde el último completo</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Frecuencia -->
+                        <div class="mb-3">
+                            <label class="form-label">Frecuencia *</label>
+                            <select class="form-select" name="frecuencia" id="frecuenciaSelect" required>
+                                <option value="diario">Diario</option>
+                                <option value="semanal">Semanal</option>
+                                <option value="mensual">Mensual</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Días de semana (solo para frecuencia semanal) -->
+                        <div class="mb-3" id="diasSemanaContainer" style="display: none;">
+                            <label class="form-label">Días de la semana *</label>
+                            <div class="row">
+                                {% set dias_semana = [
+                                    ('1', 'Lunes'), ('2', 'Martes'), ('3', 'Miércoles'),
+                                    ('4', 'Jueves'), ('5', 'Viernes'), ('6', 'Sábado'), ('0', 'Domingo')
+                                ] %}
+                                {% for valor, nombre in dias_semana %}
+                                <div class="col-6 col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="dias_semana[]" value="{{ valor }}" 
+                                               id="dia{{ valor }}">
+                                        <label class="form-check-label" for="dia{{ valor }}">
+                                            {{ nombre }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Día del mes (solo para frecuencia mensual) -->
+                        <div class="mb-3" id="diaMesContainer" style="display: none;">
+                            <label class="form-label">Día del mes *</label>
+                            <select class="form-select" name="dia_mes" id="diaMesSelect">
+                                {% for i in range(1, 32) %}
+                                <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>
+                                    Día {{ i }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Para meses con menos días, se ejecutará el último día del mes.
+                            </div>
+                        </div>
+                        
+                        <!-- Hora de ejecución -->
+                        <div class="mb-3">
+                            <label class="form-label">Hora de ejecución *</label>
+                            <input type="time" class="form-control" name="hora" value="02:00" required>
+                            <div class="form-text">
+                                Hora recomendada: 02:00 AM (bajo uso del sistema)
+                            </div>
+                        </div>
+                        
+                        <!-- Almacenamiento -->
+                        <div class="mb-4">
+                            <label class="form-label">Almacenamiento *</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="almacenamiento" 
+                                               id="almLocal" value="local" checked>
+                                        <label class="form-check-label" for="almLocal">
+                                            <i class="fas fa-server text-secondary"></i> Local
+                                            <small class="d-block text-muted">Almacenamiento en el servidor</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="almacenamiento" 
+                                               id="almUSB" value="usb" 
+                                               {% if not usb_mounted %}disabled{% endif %}>
+                                        <label class="form-check-label" for="almUSB">
+                                            <i class="fas fa-usb-drive text-warning"></i> USB
+                                            <small class="d-block text-muted">
+                                                {% if usb_mounted %}
+                                                Almacenamiento en unidad USB
+                                                {% else %}
+                                                <span class="text-danger">USB no disponible</span>
+                                                {% endif %}
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Resumen -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Resumen</h6>
+                            <p id="resumenTexto">
+                                Respaldo <strong>completo</strong> ejecutándose <strong>diariamente</strong> a las <strong>02:00</strong>,
+                                almacenado <strong>localmente</strong>.
+                            </p>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('backup.listar_programaciones') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Programación
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const frecuenciaSelect = document.getElementById('frecuenciaSelect');
+    const diasSemanaContainer = document.getElementById('diasSemanaContainer');
+    const diaMesContainer = document.getElementById('diaMesContainer');
+    const resumenTexto = document.getElementById('resumenTexto');
+    
+    // Mapeo de frecuencias
+    const frecuenciaMap = {
+        'diario': 'diariamente',
+        'semanal': 'semanalmente',
+        'mensual': 'mensualmente'
+    };
+    
+    // Actualizar controles según frecuencia
+    function actualizarControles() {
+        const frecuencia = frecuenciaSelect.value;
+        
+        // Mostrar/ocultar controles específicos
+        if (frecuencia === 'semanal') {
+            diasSemanaContainer.style.display = 'block';
+            diaMesContainer.style.display = 'none';
+            
+            // Seleccionar lunes por defecto
+            document.getElementById('dia1').checked = true;
+        } else if (frecuencia === 'mensual') {
+            diasSemanaContainer.style.display = 'none';
+            diaMesContainer.style.display = 'block';
+        } else {
+            diasSemanaContainer.style.display = 'none';
+            diaMesContainer.style.display = 'none';
+        }
+        
+        actualizarResumen();
+    }
+    
+    // Actualizar resumen
+    function actualizarResumen() {
+        const tipo = document.querySelector('input[name="tipo_respaldo"]:checked').value;
+        const frecuencia = frecuenciaSelect.value;
+        const hora = document.querySelector('input[name="hora"]').value;
+        const almacenamiento = document.querySelector('input[name="almacenamiento"]:checked').value;
+        
+        // Formatear hora
+        const horaFormateada = hora ? hora + ':00' : '02:00';
+        
+        // Días específicos
+        let diasEspecificos = '';
+        if (frecuencia === 'semanal') {
+            const diasSeleccionados = Array.from(document.querySelectorAll('input[name="dias_semana[]"]:checked'))
+                .map(cb => {
+                    const diasMap = {
+                        '0': 'domingos', '1': 'lunes', '2': 'martes', '3': 'miércoles',
+                        '4': 'jueves', '5': 'viernes', '6': 'sábados'
+                    };
+                    return diasMap[cb.value];
+                });
+            diasEspecificos = ` los ${diasSeleccionados.join(', ')}`;
+        } else if (frecuencia === 'mensual') {
+            const diaMes = document.getElementById('diaMesSelect').value;
+            diasEspecificos = ` el día ${diaMes} de cada mes`;
+        }
+        
+        let texto = `Respaldo <strong>${tipo}</strong> ejecutándose `;
+        
+        if (frecuencia === 'diario') {
+            texto += `<strong>${frecuenciaMap[frecuencia]}</strong>`;
+        } else {
+            texto += `<strong>${frecuenciaMap[frecuencia]}</strong>${diasEspecificos}`;
+        }
+        
+        texto += ` a las <strong>${horaFormateada}</strong>, `;
+        texto += `almacenado <strong>${almacenamiento === 'usb' ? 'en USB' : 'localmente'}</strong>.`;
+        
+        resumenTexto.innerHTML = texto;
+    }
+    
+    // Event listeners
+    frecuenciaSelect.addEventListener('change', actualizarControles);
+    
+    document.querySelectorAll('input[name="tipo_respaldo"]').forEach(radio => {
+        radio.addEventListener('change', actualizarResumen);
+    });
+    
+    document.querySelectorAll('input[name="almacenamiento"]').forEach(radio => {
+        radio.addEventListener('change', actualizarResumen);
+    });
+    
+    document.querySelector('input[name="hora"]').addEventListener('input', actualizarResumen);
+    
+    document.querySelectorAll('input[name="dias_semana[]"]').forEach(cb => {
+        cb.addEventListener('change', actualizarResumen);
+    });
+    
+    if (document.getElementById('diaMesSelect')) {
+        document.getElementById('diaMesSelect').addEventListener('change', actualizarResumen);
+    }
+    
+    // Validar formulario
+    document.getElementById('programacionForm').addEventListener('submit', function(e) {
+        const frecuencia = frecuenciaSelect.value;
+        
+        if (frecuencia === 'semanal') {
+            const diasSeleccionados = document.querySelectorAll('input[name="dias_semana[]"]:checked').length;
+            if (diasSeleccionados === 0) {
+                e.preventDefault();
+                alert('Por favor selecciona al menos un día de la semana para la frecuencia semanal.');
+                return;
+            }
+        }
+        
+        if (frecuencia === 'mensual') {
+            const diaMes = parseInt(document.getElementById('diaMesSelect').value);
+            if (diaMes < 1 || diaMes > 31) {
+                e.preventDefault();
+                alert('Por favor selecciona un día del mes válido (1-31).');
+                return;
+            }
+        }
+        
+        // Confirmación
+        if (!confirm('¿Crear esta programación de respaldo?')) {
+            e.preventDefault();
+        }
+    });
+    
+    // Inicializar
+    actualizarControles();
+});
+</script>
+
+<style>
+.form-check-label {
+    cursor: pointer;
+}
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+.alert {
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

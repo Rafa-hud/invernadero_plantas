@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Programación de Respaldo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-md-8 offset-md-2 col-lg-6 offset-lg-3">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit text-primary"></i> Editar Programación de Respaldo
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('backup.editar_programacion', id=programacion.id) }}" id="programacionForm">
+                        <!-- Tipo de respaldo -->
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Respaldo *</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_respaldo" 
+                                               id="tipoCompleto" value="completo" 
+                                               {% if programacion.tipo_respaldo == 'completo' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipoCompleto">
+                                            <i class="fas fa-database text-primary"></i> Completo
+                                            <small class="d-block text-muted">Respaldar toda la base de datos</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_respaldo" 
+                                               id="tipoDiferencial" value="diferencial"
+                                               {% if programacion.tipo_respaldo == 'diferencial' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipoDiferencial">
+                                            <i class="fas fa-exchange-alt text-info"></i> Diferencial
+                                            <small class="d-block text-muted">Solo cambios desde el último completo</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Frecuencia -->
+                        <div class="mb-3">
+                            <label class="form-label">Frecuencia *</label>
+                            <select class="form-select" name="frecuencia" id="frecuenciaSelect" required>
+                                <option value="diario" {% if programacion.frecuencia == 'diario' %}selected{% endif %}>Diario</option>
+                                <option value="semanal" {% if programacion.frecuencia == 'semanal' %}selected{% endif %}>Semanal</option>
+                                <option value="mensual" {% if programacion.frecuencia == 'mensual' %}selected{% endif %}>Mensual</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Días de semana (solo para frecuencia semanal) -->
+                        <div class="mb-3" id="diasSemanaContainer" style="display: none;">
+                            <label class="form-label">Días de la semana *</label>
+                            <div class="row">
+                                {% set dias_semana = [
+                                    ('1', 'Lunes'), ('2', 'Martes'), ('3', 'Miércoles'),
+                                    ('4', 'Jueves'), ('5', 'Viernes'), ('6', 'Sábado'), ('0', 'Domingo')
+                                ] %}
+                                {% for valor, nombre in dias_semana %}
+                                <div class="col-6 col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="dias_semana[]" value="{{ valor }}" 
+                                               id="dia{{ valor }}"
+                                               {% if valor in dias_semana_lista|map('string')|list %}checked{% endif %}>
+                                        <label class="form-check-label" for="dia{{ valor }}">
+                                            {{ nombre }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Día del mes (solo para frecuencia mensual) -->
+                        <div class="mb-3" id="diaMesContainer" style="display: none;">
+                            <label class="form-label">Día del mes *</label>
+                            <select class="form-select" name="dia_mes" id="diaMesSelect">
+                                {% for i in range(1, 32) %}
+                                <option value="{{ i }}" {% if programacion.dia_mes == i %}selected{% endif %}>
+                                    Día {{ i }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Para meses con menos días, se ejecutará el último día del mes.
+                            </div>
+                        </div>
+                        
+                        <!-- Hora de ejecución -->
+                        <div class="mb-3">
+                            <label class="form-label">Hora de ejecución *</label>
+                            <input type="time" class="form-control" name="hora" 
+                                   value="{{ programacion.hora_ejecucion.strftime('%H:%M') }}" required>
+                            <div class="form-text">
+                                Hora recomendada: 02:00 AM (bajo uso del sistema)
+                            </div>
+                        </div>
+                        
+                        <!-- Almacenamiento -->
+                        <div class="mb-4">
+                            <label class="form-label">Almacenamiento *</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="almacenamiento" 
+                                               id="almLocal" value="local" 
+                                               {% if programacion.almacenamiento == 'local' %}checked{% endif %}>
+                                        <label class="form-check-label" for="almLocal">
+                                            <i class="fas fa-server text-secondary"></i> Local
+                                            <small class="d-block text-muted">Almacenamiento en el servidor</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="almacenamiento" 
+                                               id="almUSB" value="usb" 
+                                               {% if programacion.almacenamiento == 'usb' %}checked{% endif %}
+                                               {% if not usb_mounted %}disabled{% endif %}>
+                                        <label class="form-check-label" for="almUSB">
+                                            <i class="fas fa-usb-drive text-warning"></i> USB
+                                            <small class="d-block text-muted">
+                                                {% if usb_mounted %}
+                                                Almacenamiento en unidad USB
+                                                {% else %}
+                                                <span class="text-danger">USB no disponible</span>
+                                                {% endif %}
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Información de la programación -->
+                        <div class="alert alert-light border">
+                            <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Información de la programación</h6>
+                            <p class="mb-1"><strong>ID:</strong> #{{ programacion.id }}</p>
+                            <p class="mb-1"><strong>Creada por:</strong> {{ programacion.usuario_creador }}</p>
+                            <p class="mb-1"><strong>Fecha creación:</strong> {{ programacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% if programacion.ultima_ejecucion %}
+                            <p class="mb-1"><strong>Última ejecución:</strong> {{ programacion.ultima_ejecucion.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% endif %}
+                            {% if programacion.proxima_ejecucion %}
+                            <p class="mb-1"><strong>Próxima ejecución:</strong> {{ programacion.proxima_ejecucion.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('backup.listar_programaciones') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                                {% if programacion.activo %}
+                                <button type="button" class="btn btn-warning" id="desactivarBtn">
+                                    <i class="fas fa-power-off"></i> Desactivar
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-success" id="activarBtn">
+                                    <i class="fas fa-power-off"></i> Activar
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const frecuenciaSelect = document.getElementById('frecuenciaSelect');
+    const diasSemanaContainer = document.getElementById('diasSemanaContainer');
+    const diaMesContainer = document.getElementById('diaMesContainer');
+    
+    // Actualizar controles según frecuencia
+    function actualizarControles() {
+        const frecuencia = frecuenciaSelect.value;
+        
+        // Mostrar/ocultar controles específicos
+        if (frecuencia === 'semanal') {
+            diasSemanaContainer.style.display = 'block';
+            diaMesContainer.style.display = 'none';
+        } else if (frecuencia === 'mensual') {
+            diasSemanaContainer.style.display = 'none';
+            diaMesContainer.style.display = 'block';
+        } else {
+            diasSemanaContainer.style.display = 'none';
+            diaMesContainer.style.display = 'none';
+        }
+    }
+    
+    // Event listeners
+    frecuenciaSelect.addEventListener('change', actualizarControles);
+    
+    // Botones activar/desactivar
+    const desactivarBtn = document.getElementById('desactivarBtn');
+    const activarBtn = document.getElementById('activarBtn');
+    
+    if (desactivarBtn) {
+        desactivarBtn.addEventListener('click', function() {
+            if (confirm('¿Desactivar esta programación? Los respaldos automáticos dejarán de ejecutarse.')) {
+                fetch(`/respaldos/programaciones/{{ programacion.id }}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Programación desactivada');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al desactivar la programación');
+                });
+            }
+        });
+    }
+    
+    if (activarBtn) {
+        activarBtn.addEventListener('click', function() {
+            if (confirm('¿Activar esta programación? Los respaldos automáticos comenzarán a ejecutarse según la programación.')) {
+                fetch(`/respaldos/programaciones/{{ programacion.id }}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Programación activada');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al activar la programación');
+                });
+            }
+        });
+    }
+    
+    // Validar formulario
+    document.getElementById('programacionForm').addEventListener('submit', function(e) {
+        const frecuencia = frecuenciaSelect.value;
+        
+        if (frecuencia === 'semanal') {
+            const diasSeleccionados = document.querySelectorAll('input[name="dias_semana[]"]:checked').length;
+            if (diasSeleccionados === 0) {
+                e.preventDefault();
+                alert('Por favor selecciona al menos un día de la semana para la frecuencia semanal.');
+                return;
+            }
+        }
+        
+        if (frecuencia === 'mensual') {
+            const diaMes = parseInt(document.getElementById('diaMesSelect').value);
+            if (diaMes < 1 || diaMes > 31) {
+                e.preventDefault();
+                alert('Por favor selecciona un día del mes válido (1-31).');
+                return;
+            }
+        }
+        
+        // Confirmación
+        if (!confirm('¿Guardar los cambios en esta programación?')) {
+            e.preventDefault();
+        }
+    });
+    
+    // Inicializar
+    actualizarControles();
+});
+</script>
+
+<style>
+.form-check-label {
+    cursor: pointer;
+}
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+.alert {
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

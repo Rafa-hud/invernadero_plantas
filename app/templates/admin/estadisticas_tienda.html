@@ -1,0 +1,724 @@
+{% extends "base.html" %}
+
+{% block title %}Estadísticas de Tienda{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: all 0.3s;
+        border-left: 4px solid;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .stat-card-primary { border-left-color: #0d6efd; }
+    .stat-card-success { border-left-color: #198754; }
+    .stat-card-warning { border-left-color: #ffc107; }
+    .stat-card-info { border-left-color: #0dcaf0; }
+    .stat-card-danger { border-left-color: #dc3545; }
+    .stat-card-purple { border-left-color: #6f42c1; }
+    .stat-card-orange { border-left-color: #fd7e14; }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    
+    .table th {
+        font-weight: 600;
+    }
+    
+    .badge-rank {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: bold;
+    }
+    
+    .rank-1 { background-color: #ffd700; color: #000; }
+    .rank-2 { background-color: #c0c0c0; color: #000; }
+    .rank-3 { background-color: #cd7f32; color: #000; }
+    .rank-other { background-color: #6c757d; color: #fff; }
+    
+    .metric-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="fas fa-chart-pie text-primary"></i> Estadísticas de Tienda
+                    </h1>
+                    <p class="text-muted">Análisis detallado de ventas y productos</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <button class="btn btn-outline-primary me-2" onclick="actualizarDatos()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Resumen -->
+    <div class="row mb-4">
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-primary h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Ventas Totales</h6>
+                    <h3>${{ "%.2f"|format(ventas_totales) }}</h3>
+                    <span class="badge bg-primary">{{ total_pedidos }} pedidos</span>
+                    <i class="fas fa-dollar-sign stat-icon text-primary"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-success h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Total Pedidos</h6>
+                    <h3>{{ total_pedidos }}</h3>
+                    <span class="badge bg-success">{{ pedidos_completados }} completados</span>
+                    <i class="fas fa-shopping-cart stat-icon text-success"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-warning h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Pedidos Pendientes</h6>
+                    <h3>{{ pedidos_pendientes }}</h3>
+                    <span class="badge bg-warning">{{ pedidos_procesando }} procesando</span>
+                    <i class="fas fa-clock stat-icon text-warning"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-danger h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Cancelados</h6>
+                    <h3>{{ pedidos_cancelados }}</h3>
+                    <span class="badge bg-danger">{{ "%.1f"|format(tasa_cancelacion) }}% tasa</span>
+                    <i class="fas fa-times-circle stat-icon text-danger"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-info h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Total Clientes</h6>
+                    <h3>{{ total_clientes }}</h3>
+                    <span class="badge bg-info">{{ clientes_activos }} activos</span>
+                    <i class="fas fa-users stat-icon text-info"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card stat-card stat-card-purple h-100">
+                <div class="card-body position-relative">
+                    <h6 class="text-muted mb-2">Ticket Promedio</h6>
+                    <h3>${{ "%.2f"|format(ticket_promedio) }}</h3>
+                    <span class="badge bg-purple">{{ "%.1f"|format(tasa_conversion) }}% conversión</span>
+                    <i class="fas fa-receipt stat-icon text-purple"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <!-- Ventas Mensuales -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i> Ventas Mensuales (Últimos 6 meses)
+                    </h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportarVentas()">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="ventasMensualesChart"></canvas>
+                    </div>
+                    {% if ventas_mensuales|length == 0 %}
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> No hay datos de ventas para mostrar en los últimos 6 meses.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Productos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i> Productos Más Vendidos
+                    </h5>
+                    <span class="badge bg-primary">{{ productos_vendidos|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if productos_vendidos|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Producto</th>
+                                    <th>Vendidos</th>
+                                    <th>Ingresos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in productos_vendidos %}
+                                <tr>
+                                    <td>
+                                        <span class="badge-rank rank-{{ loop.index if loop.index <= 3 else 'other' }}">
+                                            {{ loop.index }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ producto.nombre|truncate(20) }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary metric-badge">{{ producto.total_vendido }} uds</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success metric-badge">${{ "%.2f"|format(producto.ingresos) }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay productos vendidos aún.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Detalladas -->
+    <div class="row">
+        <!-- Resumen por Mes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i> Resumen por Mes
+                    </h5>
+                    <span class="badge bg-secondary">{{ ventas_mensuales|length }} meses</span>
+                </div>
+                <div class="card-body">
+                    {% if ventas_mensuales|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Pedidos</th>
+                                    <th>Ventas</th>
+                                    <th>Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mes in ventas_mensuales %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ mes.mes }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary metric-badge">{{ mes.total_pedidos }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success metric-badge">${{ "%.2f"|format(mes.ventas_totales) }}</span>
+                                    </td>
+                                    <td>
+                                        {% if mes.total_pedidos > 0 %}
+                                        <span class="badge bg-info metric-badge">
+                                            ${{ "%.2f"|format(mes.ventas_totales / mes.total_pedidos) }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary metric-badge">$0.00</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-dark">
+                                    <th>Total</th>
+                                    <th>
+                                        <span class="badge bg-dark">{{ ventas_mensuales|sum(attribute='total_pedidos') }}</span>
+                                    </th>
+                                    <th>
+                                        <span class="badge bg-dark">
+                                            ${{ "%.2f"|format(ventas_mensuales|sum(attribute='ventas_totales')) }}
+                                        </span>
+                                    </th>
+                                    <th>
+                                        {% set total_pedidos_mensual = ventas_mensuales|sum(attribute='total_pedidos') %}
+                                        {% set total_ventas_mensual = ventas_mensuales|sum(attribute='ventas_totales') %}
+                                        {% if total_pedidos_mensual > 0 %}
+                                        <span class="badge bg-dark">
+                                            ${{ "%.2f"|format(total_ventas_mensual / total_pedidos_mensual) }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-dark">$0.00</span>
+                                        {% endif %}
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay datos mensuales para mostrar.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas Adicionales y Distribución -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i> Análisis de Pedidos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Distribución por Estado -->
+                    <div class="mb-4">
+                        <h6>Distribución por Estado</h6>
+                        <div class="progress mb-3" style="height: 25px;">
+                            {% set total = total_pedidos %}
+                            {% if total > 0 %}
+                                {% set completados_percent = (pedidos_completados / total * 100) %}
+                                {% set pendientes_percent = (pedidos_pendientes / total * 100) %}
+                                {% set procesando_percent = (pedidos_procesando / total * 100) %}
+                                {% set cancelados_percent = (pedidos_cancelados / total * 100) %}
+                                
+                                <div class="progress-bar bg-success" style="width: {{ completados_percent }}%"
+                                     title="Completados: {{ pedidos_completados }} ({{ "%.1f"|format(completados_percent) }}%)">
+                                    {{ "%.0f"|format(completados_percent) }}%
+                                </div>
+                                <div class="progress-bar bg-warning" style="width: {{ pendientes_percent }}%"
+                                     title="Pendientes: {{ pedidos_pendientes }} ({{ "%.1f"|format(pendientes_percent) }}%)">
+                                    {{ "%.0f"|format(pendientes_percent) }}%
+                                </div>
+                                <div class="progress-bar bg-info" style="width: {{ procesando_percent }}%"
+                                     title="Procesando: {{ pedidos_procesando }} ({{ "%.1f"|format(procesando_percent) }}%)">
+                                    {{ "%.0f"|format(procesando_percent) }}%
+                                </div>
+                                <div class="progress-bar bg-danger" style="width: {{ cancelados_percent }}%"
+                                     title="Cancelados: {{ pedidos_cancelados }} ({{ "%.1f"|format(cancelados_percent) }}%)">
+                                    {{ "%.0f"|format(cancelados_percent) }}%
+                                </div>
+                            {% else %}
+                                <div class="progress-bar bg-secondary w-100">
+                                    Sin pedidos
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <small class="d-block">Completados</small>
+                                <span class="badge bg-success">{{ pedidos_completados }}</span>
+                            </div>
+                            <div class="col-3">
+                                <small class="d-block">Pendientes</small>
+                                <span class="badge bg-warning">{{ pedidos_pendientes }}</span>
+                            </div>
+                            <div class="col-3">
+                                <small class="d-block">Procesando</small>
+                                <span class="badge bg-info">{{ pedidos_procesando }}</span>
+                            </div>
+                            <div class="col-3">
+                                <small class="d-block">Cancelados</small>
+                                <span class="badge bg-danger">{{ pedidos_cancelados }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Métricas Clave -->
+                    <h6 class="mb-3">Métricas Clave</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-2">Ticket Promedio</h6>
+                                    <h4 class="text-primary">${{ "%.2f"|format(ticket_promedio) }}</h4>
+                                    <small class="text-muted">por pedido</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-2">Tasa de Conversión</h6>
+                                    <h4 class="text-success">{{ "%.1f"|format(tasa_conversion) }}%</h4>
+                                    <small class="text-muted">{{ clientes_activos }}/{{ total_clientes }} clientes</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-2">Tasa de Cancelación</h6>
+                                    <h4 class="text-danger">{{ "%.1f"|format(tasa_cancelacion) }}%</h4>
+                                    <small class="text-muted">{{ pedidos_cancelados }}/{{ total_pedidos }} pedidos</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-2">Clientes Activos</h6>
+                                    <h4 class="text-warning">{{ clientes_activos }}</h4>
+                                    <small class="text-muted">{{ "%.1f"|format((clientes_activos/total_clientes*100) if total_clientes > 0 else 0) }}% del total</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Información General -->
+                    <div class="alert alert-light border mt-3">
+                        <h6><i class="fas fa-info-circle"></i> Información General</h6>
+                        <ul class="mb-0">
+                            <li><strong>Periodo analizado:</strong> Últimos 6 meses</li>
+                            <li><strong>Total de ventas:</strong> ${{ "%.2f"|format(ventas_totales) }}</li>
+                            <li><strong>Pedidos totales:</strong> {{ total_pedidos }}</li>
+                            <li><strong>Productos únicos vendidos:</strong> {{ productos_vendidos|length }}</li>
+                            <li><strong>Fecha de actualización:</strong> {{ datetime.utcnow().strftime('%d/%m/%Y %H:%M') }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Variables para gráficos
+let ventasChart = null;
+
+// Inicializar gráficos cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarGraficoVentas();
+});
+
+// Función para inicializar gráfico de ventas mensuales
+function inicializarGraficoVentas() {
+    const ctx = document.getElementById('ventasMensualesChart').getContext('2d');
+    
+    // Datos desde Flask
+    const meses = {{ ventas_mensuales|map(attribute='mes')|list|tojson|safe }};
+    const ventas = {{ ventas_mensuales|map(attribute='ventas_totales')|list|tojson|safe }};
+    const pedidos = {{ ventas_mensuales|map(attribute='total_pedidos')|list|tojson|safe }};
+    
+    // Verificar si hay datos
+    if (meses.length === 0) {
+        // Mostrar mensaje de no datos en el canvas
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#6c757d';
+        ctx.textAlign = 'center';
+        ctx.font = '16px Arial';
+        ctx.fillText('No hay datos disponibles', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    ventasChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Ventas ($)',
+                    data: ventas,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Pedidos',
+                    data: pedidos,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    type: 'line',
+                    yAxisID: 'y1',
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Ventas ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Pedidos'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label.includes('Ventas')) {
+                                return `${label}: $${context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                            } else {
+                                return `${label}: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+}
+
+// Función para exportar datos de ventas
+function exportarVentas() {
+    Swal.fire({
+        title: 'Exportar datos',
+        text: 'Selecciona el formato de exportación:',
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'JSON',
+        denyButtonText: 'CSV',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            exportarJSON();
+        } else if (result.isDenied) {
+            exportarCSV();
+        }
+    });
+}
+
+// Función para exportar a JSON
+function exportarJSON() {
+    // Crear datos para exportar
+    const datos = {
+        ventas_totales: {{ ventas_totales }},
+        total_pedidos: {{ total_pedidos }},
+        pedidos_pendientes: {{ pedidos_pendientes }},
+        pedidos_procesando: {{ pedidos_procesando }},
+        pedidos_completados: {{ pedidos_completados }},
+        pedidos_cancelados: {{ pedidos_cancelados }},
+        productos_vendidos: {{ productos_vendidos|tojson|safe }},
+        ventas_mensuales: {{ ventas_mensuales|tojson|safe }},
+        fecha_exportacion: new Date().toISOString()
+    };
+    
+    // Crear y descargar archivo
+    const dataStr = JSON.stringify(datos, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `estadisticas_tienda_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    Swal.fire({
+        icon: 'success',
+        title: '¡Exportado!',
+        text: 'Los datos han sido exportados en formato JSON.',
+        timer: 2000,
+        showConfirmButton: false
+    });
+}
+
+// Función para exportar a CSV
+function exportarCSV() {
+    // Crear datos CSV
+    let csv = 'Mes,Pedidos,Ventas,Promedio\n';
+    
+    // Agregar datos mensuales
+    {% for mes in ventas_mensuales %}
+    csv += `"{{ mes.mes }}",{{ mes.total_pedidos }},{{ mes.ventas_totales }},`;
+    {% if mes.total_pedidos > 0 %}
+    csv += `{{ mes.ventas_totales / mes.total_pedidos }}\n`;
+    {% else %}
+    csv += `0\n`;
+    {% endif %}
+    {% endfor %}
+    
+    // Agregar totales
+    {% set total_pedidos_mensual = ventas_mensuales|sum(attribute='total_pedidos') %}
+    {% set total_ventas_mensual = ventas_mensuales|sum(attribute='ventas_totales') %}
+    csv += `"TOTAL",{{ total_pedidos_mensual }},{{ total_ventas_mensual }},`;
+    {% if total_pedidos_mensual > 0 %}
+    csv += `{{ total_ventas_mensual / total_pedidos_mensual }}\n`;
+    {% else %}
+    csv += `0\n`;
+    {% endif %}
+    
+    // Crear y descargar archivo
+    const dataUri = 'data:text/csv;charset=utf-8,'+ encodeURIComponent(csv);
+    const exportFileDefaultName = `estadisticas_tienda_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    Swal.fire({
+        icon: 'success',
+        title: '¡Exportado!',
+        text: 'Los datos han sido exportados en formato CSV.',
+        timer: 2000,
+        showConfirmButton: false
+    });
+}
+
+// Función para actualizar datos en tiempo real
+function actualizarDatos() {
+    Swal.fire({
+        title: 'Actualizando datos...',
+        text: 'Obteniendo información actualizada de la base de datos',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Recargar la página
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+// Configurar actualización automática cada 10 minutos
+setTimeout(() => {
+    if (document.hasFocus()) { // Solo si la pestaña está activa
+        Swal.fire({
+            title: '¿Actualizar datos?',
+            text: 'Han pasado 10 minutos desde la última actualización',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Actualizar',
+            cancelButtonText: 'Más tarde',
+            timer: 10000 // Auto-cerrar después de 10 segundos
+        }).then((result) => {
+            if (result.isConfirmed) {
+                actualizarDatos();
+            }
+        });
+    }
+}, 600000); // 10 minutos
+
+// Configuración para impresión
+window.addEventListener('beforeprint', () => {
+    // Ocultar elementos no necesarios para impresión
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.classList.add('d-print-none');
+    });
+});
+
+window.addEventListener('afterprint', () => {
+    // Restaurar elementos
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.classList.remove('d-print-none');
+    });
+});
+</script>
+{% endblock %}

@@ -5,87 +5,321 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-10">
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0"><i class="fas fa-edit"></i> Editar Planta: {{ planta.nombre }}</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
-                        <!-- Nombre -->
-                        <div class="mb-3">
-                            <label for="nombre" class="form-label">
-                                <i class="fas fa-leaf"></i> Nombre de la Planta *
-                            </label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" 
-                                   value="{{ planta.nombre }}" required
-                                   placeholder="Nombre de la planta">
-                            <div class="form-text">Nombre común por el que conoces la planta.</div>
-                        </div>
+                    <form method="POST" enctype="multipart/form-data" id="editarPlantaForm">
+                        <!-- Campo oculto para eliminar imagen -->
+                        <input type="hidden" name="eliminar_imagen" id="eliminarImagenHidden" value="false">
                         
-                        <!-- Especie -->
-                        <div class="mb-3">
-                            <label for="especie" class="form-label">
-                                <i class="fas fa-dna"></i> Especie / Nombre Científico
-                            </label>
-                            <input type="text" class="form-control" id="especie" name="especie" 
-                                   value="{{ planta.especie or '' }}"
-                                   placeholder="Nombre científico (opcional)">
-                            <div class="form-text">Ej: Monstera deliciosa, Rosa spp.</div>
-                        </div>
-                        
-                        <!-- Estado -->
-                        <div class="mb-3">
-                            <label for="estado" class="form-label">
-                                <i class="fas fa-circle"></i> Estado
-                            </label>
-                            <select class="form-select" id="estado" name="estado">
-                                <option value="activa" {% if planta.estado == 'activa' %}selected{% endif %}>Activa</option>
-                                <option value="inactiva" {% if planta.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
-                                <option value="enferma" {% if planta.estado == 'enferma' %}selected{% endif %}>Enferma</option>
-                                <option value="trasplantada" {% if planta.estado == 'trasplantada' %}selected{% endif %}>Trasplantada</option>
-                                <option value="cosechada" {% if planta.estado == 'cosechada' %}selected{% endif %}>Cosechada</option>
-                            </select>
-                            <div class="form-text">Estado actual de la planta.</div>
-                        </div>
-                        
-                        <!-- Información de solo lectura (no editable) -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Información del Sistema</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p class="mb-2">
-                                            <strong><i class="fas fa-calendar-alt"></i> Fecha de registro:</strong><br>
-                                            {% if planta.fecha_registro %}
-                                                {{ planta.fecha_registro.strftime('%d/%m/%Y %H:%M') }}
+                        <div class="row">
+                            <!-- Columna Izquierda - Imagen y campos básicos -->
+                            <div class="col-md-6">
+                                <!-- Sección de Imagen -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-image text-primary"></i> Imagen de la Planta
+                                    </label>
+                                    
+                                    <div class="text-center mb-3">
+                                        <div id="imagePreviewContainer" class="border rounded p-3 bg-light" 
+                                             style="min-height: 220px; display: flex; align-items: center; justify-content: center; flex-direction: column; cursor: pointer;"
+                                             onclick="document.getElementById('imagen').click()"
+                                             title="Haz clic para seleccionar una imagen">
+                                            {% if planta.tiene_imagen %}
+                                                <img id="imagePreview" src="{{ planta.obtener_imagen() }}" 
+                                                     class="img-fluid rounded shadow-sm" 
+                                                     style="max-height: 180px; max-width: 100%; object-fit: contain;"
+                                                     alt="Imagen actual de {{ planta.nombre }}"
+                                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/planta_default.png') }}'">
+                                                <div id="noImageText" class="text-center" style="display: none;">
+                                                    <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
+                                                    <p class="text-muted mb-1 fw-semibold">No hay imagen actual</p>
+                                                    <p class="text-muted small">Haz clic para seleccionar una imagen</p>
+                                                </div>
                                             {% else %}
-                                                No disponible
+                                                <div id="noImageText" class="text-center">
+                                                    <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
+                                                    <p class="text-muted mb-1 fw-semibold">No hay imagen actual</p>
+                                                    <p class="text-muted small">Haz clic para seleccionar una imagen</p>
+                                                </div>
+                                                <img id="imagePreview" class="img-fluid rounded shadow-sm d-none" 
+                                                     style="max-height: 180px; max-width: 100%; object-fit: contain;"
+                                                     alt="Vista previa">
                                             {% endif %}
-                                        </p>
+                                        </div>
+                                        <small class="text-muted d-block mt-2">Haz clic en el área para seleccionar una imagen</small>
                                     </div>
-                                    <div class="col-md-6">
-                                        <p class="mb-2">
-                                            <strong><i class="fas fa-hashtag"></i> ID:</strong><br>
-                                            {{ planta.id }}
-                                        </p>
+                                    
+                                    <div class="input-group mb-2">
+                                        <input type="file" class="form-control d-none" id="imagen" name="imagen" 
+                                               accept="image/*" 
+                                               onchange="previewImage(event)">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-upload"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="imagenNombre" 
+                                               placeholder="Ningún archivo seleccionado" readonly>
+                                        <button class="btn btn-outline-secondary" type="button" 
+                                                onclick="document.getElementById('imagen').click()">
+                                            <i class="fas fa-folder-open"></i> Buscar
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="removeImage()" id="removeImageBtn"
+                                                {% if not planta.tiene_imagen %}disabled{% endif %}
+                                                title="Eliminar imagen">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="alert alert-info py-2 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <div>
+                                                <small class="fw-semibold">Formatos aceptados:</small>
+                                                <small> JPG, PNG, GIF, WebP, BMP (Máx. 10MB)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- URL de imagen alternativa -->
+                                    <div class="mt-3">
+                                        <label class="form-label fw-semibold">
+                                            <i class="fas fa-link text-primary"></i> O usar URL de imagen externa
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-globe"></i>
+                                            </span>
+                                            <input type="url" class="form-control" id="imagen_url" name="imagen_url" 
+                                                   value="{{ planta.imagen_url or '' }}"
+                                                   placeholder="https://ejemplo.com/imagen.jpg"
+                                                   title="Ingresa una URL válida">
+                                        </div>
+                                        <div class="form-text mt-1">
+                                            <i class="fas fa-lightbulb text-warning"></i> 
+                                            Puedes usar una URL externa o subir una imagen desde tu computadora.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Campos básicos -->
+                                <div class="card border-0 shadow-sm mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información Básica</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Nombre -->
+                                        <div class="mb-3">
+                                            <label for="nombre" class="form-label fw-semibold">
+                                                <i class="fas fa-leaf text-success"></i> Nombre de la Planta *
+                                            </label>
+                                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                                   value="{{ planta.nombre }}" required
+                                                   placeholder="Ej: Monstera, Rosa, Cactus"
+                                                   minlength="2" maxlength="100">
+                                            <div class="form-text">Nombre común por el que conoces la planta.</div>
+                                        </div>
+                                        
+                                        <!-- Especie -->
+                                        <div class="mb-3">
+                                            <label for="especie" class="form-label fw-semibold">
+                                                <i class="fas fa-dna text-info"></i> Especie / Nombre Científico
+                                            </label>
+                                            <input type="text" class="form-control" id="especie" name="especie" 
+                                                   value="{{ planta.especie or '' }}"
+                                                   placeholder="Nombre científico (opcional)"
+                                                   maxlength="100">
+                                            <div class="form-text">Ej: Monstera deliciosa, Rosa spp., Echeveria elegans</div>
+                                        </div>
+                                        
+                                        <!-- Categoría -->
+                                        <div class="mb-3">
+                                            <label for="categoria" class="form-label fw-semibold">
+                                                <i class="fas fa-tag text-warning"></i> Categoría
+                                            </label>
+                                            <select class="form-select" id="categoria" name="categoria">
+                                                <option value="">Seleccionar categoría...</option>
+                                                <option value="Interior" {% if planta.categoria == 'Interior' %}selected{% endif %}>Interior</option>
+                                                <option value="Exterior" {% if planta.categoria == 'Exterior' %}selected{% endif %}>Exterior</option>
+                                                <option value="Suculentas" {% if planta.categoria == 'Suculentas' %}selected{% endif %}>Suculentas</option>
+                                                <option value="Cactus" {% if planta.categoria == 'Cactus' %}selected{% endif %}>Cactus</option>
+                                                <option value="Aromáticas" {% if planta.categoria == 'Aromáticas' %}selected{% endif %}>Aromáticas</option>
+                                                <option value="Medicinales" {% if planta.categoria == 'Medicinales' %}selected{% endif %}>Medicinales</option>
+                                                <option value="Frutales" {% if planta.categoria == 'Frutales' %}selected{% endif %}>Frutales</option>
+                                                <option value="Ornamentales" {% if planta.categoria == 'Ornamentales' %}selected{% endif %}>Ornamentales</option>
+                                                <option value="Tropicales" {% if planta.categoria == 'Tropicales' %}selected{% endif %}>Tropicales</option>
+                                                <option value="Acuáticas" {% if planta.categoria == 'Acuáticas' %}selected{% endif %}>Acuáticas</option>
+                                            </select>
+                                            <div class="form-text">Categoría para organizar tus plantas.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Columna Derecha - Campos adicionales -->
+                            <div class="col-md-6">
+                                <!-- Sección de Estado y Disponibilidad -->
+                                <div class="card border-0 shadow-sm mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-chart-line text-success"></i> Estado y Disponibilidad</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Estado -->
+                                        <div class="mb-3">
+                                            <label for="estado" class="form-label fw-semibold">
+                                                <i class="fas fa-heartbeat text-danger"></i> Estado
+                                            </label>
+                                            <select class="form-select" id="estado" name="estado" required>
+                                                <option value="activa" {% if planta.estado == 'activa' %}selected{% endif %}>Activa</option>
+                                                <option value="inactiva" {% if planta.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
+                                                <option value="enferma" {% if planta.estado == 'enferma' %}selected{% endif %}>Enferma</option>
+                                                <option value="trasplantada" {% if planta.estado == 'trasplantada' %}selected{% endif %}>Trasplantada</option>
+                                                <option value="cosechada" {% if planta.estado == 'cosechada' %}selected{% endif %}>Cosechada</option>
+                                                <option value="en_floracion" {% if planta.estado == 'en_floracion' %}selected{% endif %}>En Floración</option>
+                                            </select>
+                                            <div class="form-text">Estado actual de la planta para seguimiento.</div>
+                                        </div>
+
+                                        <!-- Disponible para venta -->
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="disponible_venta" 
+                                                       name="disponible_venta" value="true"
+                                                       {% if planta.disponible_venta %}checked{% endif %}>
+                                                <label class="form-check-label fw-semibold" for="disponible_venta">
+                                                    <i class="fas fa-shopping-cart text-primary"></i> Disponible para venta
+                                                </label>
+                                            </div>
+                                            <div class="form-text">Activar para mostrar esta planta en la tienda.</div>
+                                        </div>
+
+                                        <!-- Precio y Stock -->
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="precio" class="form-label fw-semibold">
+                                                    <i class="fas fa-dollar-sign text-success"></i> Precio (USD)
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" class="form-control" id="precio" name="precio" 
+                                                           value="{{ planta.precio or 0 }}" min="0" max="9999.99" step="0.01"
+                                                           placeholder="0.00">
+                                                </div>
+                                                <div class="form-text">Precio de venta en la tienda.</div>
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="stock" class="form-label fw-semibold">
+                                                    <i class="fas fa-boxes text-info"></i> Stock
+                                                </label>
+                                                <input type="number" class="form-control" id="stock" name="stock" 
+                                                       value="{{ planta.stock or 0 }}" min="0" max="9999"
+                                                       placeholder="0">
+                                                <div class="form-text">Cantidad disponible para venta.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Descripción -->
+                                <div class="card border-0 shadow-sm mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-align-left text-primary"></i> Descripción</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <textarea class="form-control" id="descripcion" name="descripcion" 
+                                                      rows="5" placeholder="Describe la planta, cuidados especiales, requerimientos de luz y agua, etc..."
+                                                      maxlength="2000">{{ planta.descripcion or '' }}</textarea>
+                                            <div class="d-flex justify-content-between mt-2">
+                                                <div class="form-text">
+                                                    <i class="fas fa-lightbulb text-warning"></i> 
+                                                    Incluye información útil para el cuidado.
+                                                </div>
+                                                <small class="text-muted">
+                                                    <span id="charCount">{{ planta.descripcion|length if planta.descripcion else 0 }}</span>/2000 caracteres
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Información del sistema -->
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-database text-secondary"></i> Información del Sistema</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="small text-muted mb-1">
+                                                        <i class="fas fa-calendar-alt"></i> Fecha de registro
+                                                    </label>
+                                                    <p class="mb-0 fw-semibold">
+                                                        {% if planta.fecha_registro %}
+                                                            {{ planta.fecha_registro.strftime('%d/%m/%Y') }}
+                                                        {% else %}
+                                                            No disponible
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="small text-muted mb-1">
+                                                        <i class="fas fa-clock"></i> Última actualización
+                                                    </label>
+                                                    <p class="mb-0 fw-semibold">
+                                                        {% if planta.fecha_registro %}
+                                                            {{ planta.fecha_registro.strftime('%H:%M') }}
+                                                        {% else %}
+                                                            No disponible
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="small text-muted mb-1">
+                                                        <i class="fas fa-hashtag"></i> ID de la planta
+                                                    </label>
+                                                    <p class="mb-0 fw-semibold">{{ planta.id }}</p>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="small text-muted mb-1">
+                                                        <i class="fas fa-user"></i> Creada por
+                                                    </label>
+                                                    <p class="mb-0 fw-semibold">
+                                                        {{ planta.usuario.nombre if planta.usuario else 'N/A' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Botones -->
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Volver
-                            </a>
+
+                        <!-- Botones de acción -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                             <div>
-                                <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" class="btn btn-outline-primary me-2">
-                                    <i class="fas fa-times"></i> Cancelar
+                                <a href="{{ url_for('plants.listar_plantas') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Volver al listado
                                 </a>
-                                <button type="submit" class="btn btn-primary">
+                                <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" class="btn btn-outline-primary ms-2">
+                                    <i class="fas fa-eye"></i> Ver detalles
+                                </a>
+                            </div>
+                            <div>
+                                <button type="reset" class="btn btn-outline-danger me-2" onclick="resetForm()">
+                                    <i class="fas fa-undo"></i> Restablecer
+                                </button>
+                                <button type="submit" class="btn btn-primary px-4" id="submitBtn">
                                     <i class="fas fa-save"></i> Guardar Cambios
                                 </button>
                             </div>
@@ -94,44 +328,354 @@
                 </div>
             </div>
             
-            <!-- Card de ayuda -->
-            <div class="card mt-3">
-                <div class="card-body">
-                    <h6><i class="fas fa-lightbulb text-warning"></i> Notas importantes</h6>
-                    <ul class="mb-0 small">
-                        <li>Los campos marcados con * son obligatorios.</li>
-                        <li>La fecha de registro no se puede modificar (se establece al crear la planta).</li>
-                        <li>El estado ayuda a clasificar el estado actual de la planta.</li>
-                    </ul>
-                </div>
+            <!-- Mensajes flash -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mt-3">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                                    <div>{{ message|safe }}</div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación simplificado -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-question-circle text-primary me-2"></i> Confirmar cambios</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres guardar los cambios en la planta <strong id="plantaNombreModal">{{ planta.nombre }}</strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmSaveBtn">
+                    <i class="fas fa-check"></i> Sí, guardar cambios
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Incluir FontAwesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
 <style>
     .form-label {
         font-weight: 600;
-        color: #495057;
-    }
-    .form-label i {
-        margin-right: 8px;
-        width: 20px;
-        text-align: center;
+        color: #2c3e50;
     }
     .card {
-        border: 1px solid #dee2e6;
-        border-radius: 10px;
+        border-radius: 12px;
+        overflow: hidden;
     }
     .card-header {
-        border-radius: 10px 10px 0 0 !important;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
     }
     .form-control:focus, .form-select:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        border-color: #4361ee;
+        box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.15);
+    }
+    #imagePreviewContainer {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px dashed #adb5bd;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    #imagePreviewContainer:hover {
+        border-color: #4361ee;
+        background: linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .form-check-input:checked {
+        background-color: #4361ee;
+        border-color: #4361ee;
+    }
+    .btn-primary {
+        background-color: #4361ee;
+        border-color: #4361ee;
+        transition: all 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #3a56d4;
+        border-color: #3a56d4;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
     }
 </style>
+
+<script>
+// Variables globales
+let originalFormData = null;
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    setupEventListeners();
+    setupCharacterCounter();
+});
+
+function initializeForm() {
+    const preview = document.getElementById('imagePreview');
+    const noImageText = document.getElementById('noImageText');
+    const removeBtn = document.getElementById('removeImageBtn');
+    const imagenInput = document.getElementById('imagen');
+    
+    // Configurar vista previa inicial
+    if (preview && preview.src && !preview.classList.contains('d-none')) {
+        // Hay imagen actual
+        preview.classList.remove('d-none');
+        if (noImageText) noImageText.style.display = 'none';
+        if (removeBtn) removeBtn.disabled = false;
+    }
+    
+    // Inicializar contador de caracteres
+    const descripcion = document.getElementById('descripcion');
+    const charCount = document.getElementById('charCount');
+    if (descripcion && charCount) {
+        charCount.textContent = descripcion.value.length;
+    }
+}
+
+function setupEventListeners() {
+    // Actualizar nombre del archivo cuando se selecciona
+    document.getElementById('imagen').addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            document.getElementById('imagenNombre').value = this.files[0].name;
+        } else {
+            document.getElementById('imagenNombre').value = 'Ningún archivo seleccionado';
+        }
+    });
+    
+    // Evitar envío directo del formulario
+    document.getElementById('editarPlantaForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        showConfirmationModal();
+    });
+    
+    // Confirmar envío desde modal
+    document.getElementById('confirmSaveBtn').addEventListener('click', function() {
+        // Enviar formulario directamente
+        document.getElementById('editarPlantaForm').submit();
+    });
+}
+
+function setupCharacterCounter() {
+    const descripcion = document.getElementById('descripcion');
+    const charCount = document.getElementById('charCount');
+    
+    if (descripcion && charCount) {
+        descripcion.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+            if (this.value.length > 1900) {
+                charCount.classList.add('text-danger', 'fw-bold');
+            } else {
+                charCount.classList.remove('text-danger', 'fw-bold');
+            }
+        });
+    }
+}
+
+// Vista previa de imagen
+function previewImage(event) {
+    const input = event.target;
+    const preview = document.getElementById('imagePreview');
+    const noImageText = document.getElementById('noImageText');
+    const removeBtn = document.getElementById('removeImageBtn');
+    
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Validar tamaño (máx 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('La imagen es muy grande. El tamaño máximo es 10MB.');
+            input.value = '';
+            document.getElementById('imagenNombre').value = 'Ningún archivo seleccionado';
+            return;
+        }
+        
+        // Validar tipo de archivo
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+        if (!validTypes.includes(file.type.toLowerCase())) {
+            alert('Formato no válido. Solo se aceptan JPG, PNG, GIF, WebP o BMP.');
+            input.value = '';
+            document.getElementById('imagenNombre').value = 'Ningún archivo seleccionado';
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.remove('d-none');
+            if (noImageText) noImageText.style.display = 'none';
+            removeBtn.disabled = false;
+            
+            // Limpiar campo de URL si se sube archivo
+            document.getElementById('imagen_url').value = '';
+            document.getElementById('eliminarImagenHidden').value = 'false';
+        };
+        
+        reader.onerror = function() {
+            alert('Error al leer la imagen');
+        };
+        
+        reader.readAsDataURL(file);
+    }
+}
+
+// Eliminar imagen
+function removeImage() {
+    if (!confirm('¿Estás seguro de que quieres eliminar la imagen de la planta?')) {
+        return;
+    }
+    
+    const preview = document.getElementById('imagePreview');
+    const noImageText = document.getElementById('noImageText');
+    const fileInput = document.getElementById('imagen');
+    const urlInput = document.getElementById('imagen_url');
+    const fileNameInput = document.getElementById('imagenNombre');
+    const removeBtn = document.getElementById('removeImageBtn');
+    
+    // Ocultar vista previa
+    preview.src = '';
+    preview.classList.add('d-none');
+    
+    // Mostrar texto "no hay imagen"
+    if (noImageText) {
+        noImageText.style.display = 'block';
+    }
+    
+    // Limpiar inputs
+    fileInput.value = '';
+    urlInput.value = '';
+    fileNameInput.value = 'Ningún archivo seleccionado';
+    
+    // Deshabilitar botón de eliminar
+    removeBtn.disabled = true;
+    
+    // Marcar para eliminar imagen del servidor
+    document.getElementById('eliminarImagenHidden').value = 'true';
+}
+
+function showConfirmationModal() {
+    // Validar formulario
+    if (!validateForm()) {
+        return;
+    }
+    
+    // Actualizar nombre en modal
+    const nombre = document.getElementById('nombre').value;
+    document.getElementById('plantaNombreModal').textContent = nombre;
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
+}
+
+function validateForm() {
+    const nombre = document.getElementById('nombre').value.trim();
+    const precio = parseFloat(document.getElementById('precio').value);
+    const stock = parseInt(document.getElementById('stock').value);
+    const fileInput = document.getElementById('imagen');
+    
+    // Validar nombre
+    if (!nombre) {
+        alert('El nombre de la planta es obligatorio');
+        document.getElementById('nombre').focus();
+        return false;
+    }
+    
+    if (nombre.length < 2) {
+        alert('El nombre debe tener al menos 2 caracteres');
+        document.getElementById('nombre').focus();
+        return false;
+    }
+    
+    // Validar precio
+    if (isNaN(precio) || precio < 0) {
+        alert('El precio debe ser un número válido mayor o igual a 0');
+        document.getElementById('precio').focus();
+        return false;
+    }
+    
+    // Validar stock
+    if (isNaN(stock) || stock < 0) {
+        alert('El stock debe ser un número válido mayor o igual a 0');
+        document.getElementById('stock').focus();
+        return false;
+    }
+    
+    // Validar archivo de imagen
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        
+        // Validar tamaño (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('La imagen es muy grande. El tamaño máximo es 10MB.');
+            return false;
+        }
+        
+        // Validar tipo
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+        if (!validTypes.includes(file.type.toLowerCase())) {
+            alert('Formato de imagen no válido. Solo se aceptan JPG, PNG, GIF, WebP o BMP.');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function resetForm() {
+    if (!confirm('¿Estás seguro de que quieres restablecer todos los cambios?')) {
+        return;
+    }
+    
+    // Restablecer valores originales
+    const form = document.getElementById('editarPlantaForm');
+    form.reset();
+    
+    // Restablecer vista de imagen
+    const preview = document.getElementById('imagePreview');
+    const noImageText = document.getElementById('noImageText');
+    const removeBtn = document.getElementById('removeImageBtn');
+    
+    {% if planta.tiene_imagen %}
+        preview.src = '{{ planta.obtener_imagen() }}';
+        preview.classList.remove('d-none');
+        if (noImageText) noImageText.style.display = 'none';
+        removeBtn.disabled = false;
+    {% else %}
+        preview.src = '';
+        preview.classList.add('d-none');
+        if (noImageText) noImageText.style.display = 'block';
+        removeBtn.disabled = true;
+    {% endif %}
+    
+    // Restablecer campos adicionales
+    document.getElementById('imagenNombre').value = 'Ningún archivo seleccionado';
+    document.getElementById('eliminarImagenHidden').value = 'false';
+    
+    // Restablecer contador de caracteres
+    const charCount = document.getElementById('charCount');
+    if (charCount) {
+        charCount.textContent = '{{ planta.descripcion|length if planta.descripcion else 0 }}';
+        charCount.classList.remove('text-danger', 'fw-bold');
+    }
+}
+</script>
 {% endblock %}
