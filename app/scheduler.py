@@ -2,16 +2,56 @@
 import threading
 import time
 from datetime import datetime, timedelta
-from app import create_app, db
-from app.models import ProgramacionRespaldo, Respaldo
 import logging
 import traceback
 import os
-import subprocess
 import gzip
-import shutil
+from bson import ObjectId, json_util
+from app.database import get_db
 
 logger = logging.getLogger(__name__)
+
+def calcular_proxima_ejecucion(programacion):
+    """
+    Calcula la próxima fecha de ejecución basada en la configuración.
+    Reemplaza al antiguo método del modelo relacional.
+    """
+    ahora = datetime.utcnow()
+    
+    # Manejar el formato de la hora (puede venir como string o objeto time)
+    hora_dato = programacion.get('hora_ejecucion', '02:00')
+    if hasattr(hora_dato, 'strftime'):
+        hora_str = hora_dato.strftime('%H:%M')
+    else:
+        hora_str = str(hora_dato)
+        
+    hora, minuto = map(int, hora_str.split(':'))
+    
+    # Base: hoy a la hora configurada
+    proxima = ahora.replace(hour=hora, minute=minuto, second=0, microsecond=0)
+    
+    # Si la hora ya pasó hoy, base para el cálculo es mañana
+    if proxima <= ahora:
+        proxima += timedelta(days=1)
+        
+    frecuencia = programacion.get('frecuencia', 'diario')
+    
+    if frecuencia == 'semanal':
+        # dias_semana suele ser "0,2,4" (lunes, miércoles, viernes)
+        dias_str = programacion.get('dias_semana', '0')
+        if dias_str:
+            dias_permitidos = [int(d) for d in dias_str.split(',')]
+            while proxima.weekday() not in dias_permitidos:
+                proxima += timedelta(days=1)
+                
+    elif frecuencia == 'mensual':
+        dia_objetivo = int(programacion.get('dia_mes', 1))
+        # Avanzar días hasta coincidir con el día del mes
+        while proxima.day != dia_objetivo:
+            proxima += timedelta(days=1)
+            
+    return proxima
+
 
 class BackupScheduler:
     def __init__(self):
@@ -29,6 +69,7 @@ class BackupScheduler:
         if app_instance:
             self.app = app_instance
         else:
+            from app import create_app
             self.app = create_app()
         
         self.running = True
@@ -60,53 +101,56 @@ class BackupScheduler:
                     time.sleep(1)
     
     def _check_scheduled_backups(self):
-        """Verificar y ejecutar respaldos programados"""
+        """Verificar y ejecutar respaldos programados en MongoDB"""
         ahora = datetime.utcnow()
+        db = get_db()
         
-        # Obtener programaciones activas
-        programaciones = ProgramacionRespaldo.query.filter_by(activo=True).all()
+        # Obtener programaciones activas (Equivalente a .filter_by(activo=True))
+        programaciones = list(db.schedules.find({'activo': True}))
         
         for programacion in programaciones:
             try:
-                # Verificar si es hora de ejecutar
-                if not programacion.proxima_ejecucion:
-                    programacion.proxima_ejecucion = programacion.calcular_proxima_ejecucion()
-                    db.session.commit()
+                prog_id = programacion['_id']
                 
-                # Verificar si la próxima ejecución ya pasó
-                if programacion.proxima_ejecucion and programacion.proxima_ejecucion <= ahora:
-                    logger.info(f"Ejecutando respaldo programado #{programacion.id} - {programacion.tipo_respaldo}")
+                # Verificar si no tiene fecha calculada
+                if not programacion.get('proxima_ejecucion'):
+                    nueva_fecha = calcular_proxima_ejecucion(programacion)
+                    db.schedules.update_one({'_id': prog_id}, {'$set': {'proxima_ejecucion': nueva_fecha}})
+                    programacion['proxima_ejecucion'] = nueva_fecha
+                
+                # Ejecutar si ya pasó la hora
+                if programacion['proxima_ejecucion'] <= ahora:
+                    logger.info(f"Ejecutando respaldo programado #{prog_id} - {programacion.get('tipo_respaldo')}")
                     
-                    # Ejecutar el respaldo
                     self._execute_scheduled_backup(programacion)
                     
-                    # Actualizar fechas de ejecución
-                    programacion.ultima_ejecucion = ahora
-                    programacion.proxima_ejecucion = programacion.calcular_proxima_ejecucion()
-                    db.session.commit()
+                    # Actualizar fechas para el próximo ciclo
+                    prox = calcular_proxima_ejecucion(programacion)
+                    db.schedules.update_one(
+                        {'_id': prog_id}, 
+                        {'$set': {'ultima_ejecucion': ahora, 'proxima_ejecucion': prox}}
+                    )
                     
-                    logger.info(f"Respaldo programado #{programacion.id} completado. Próxima ejecución: {programacion.proxima_ejecucion}")
+                    logger.info(f"Respaldo programado completado. Próxima ejecución: {prox}")
                     
             except Exception as e:
-                logger.error(f"Error ejecutando programación #{programacion.id}: {e}")
+                logger.error(f"Error ejecutando programación #{programacion.get('_id')}: {e}")
                 logger.error(traceback.format_exc())
-                db.session.rollback()
     
     def _execute_scheduled_backup(self, programacion):
-        """Ejecutar un respaldo programado"""
+        """Ejecutar un respaldo extrayendo datos con PyMongo"""
         try:
-            # Importar funciones necesarias desde routes
+            # Importaciones locales para evitar dependencias circulares
             from app.routes import calcular_checksum, detectar_usb_json
             
-            # Configuración
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"respaldo_programado_{programacion.tipo_respaldo}_{timestamp}.sql.gz"
+            tipo = programacion.get('tipo_respaldo', 'completo')
+            filename = f"respaldo_programado_{tipo}_{timestamp}.json.gz"
             
             # Determinar almacenamiento
-            if programacion.almacenamiento == 'usb':
+            if programacion.get('almacenamiento') == 'usb':
                 usb_info = detectar_usb_json()
                 if usb_info.get('conectado'):
-                    # Crear carpeta en USB
                     usb_backup_folder = os.path.join(usb_info['ruta'], 'respaldos_gestion_plantas')
                     os.makedirs(usb_backup_folder, exist_ok=True)
                     filepath = os.path.join(usb_backup_folder, filename)
@@ -119,56 +163,34 @@ class BackupScheduler:
                 filepath = os.path.join('backups', filename)
                 almacenamiento = 'local'
             
-            # Obtener configuración de la base de datos
-            db_config = self.app.config
-            db_host = db_config.get('MYSQL_HOST', 'localhost')
-            db_user = db_config.get('MYSQL_USER', 'root')
-            db_password = db_config.get('MYSQL_PASSWORD', '')
-            db_name = db_config.get('MYSQL_DATABASE', 'gestion_plantas')
+            db = get_db()
             
-            # Ruta temporal
-            temp_file = os.path.join('backups', f"temp_programado_{timestamp}.sql")
+            # 1. EXTRACCIÓN CON PYMONGO
+            data_to_backup = {}
+            for coll_name in db.list_collection_names():
+                data_to_backup[coll_name] = list(db[coll_name].find())
             
-            # Construir comando mysqldump
-            if db_password:
-                cmd = ['mysqldump', '-h', db_host, '-u', db_user, f'-p{db_password}', db_name]
-            else:
-                cmd = ['mysqldump', '-h', db_host, '-u', db_user, db_name]
+            # 2. CONVERSIÓN Y COMPRESIÓN
+            json_data = json_util.dumps(data_to_backup)
             
-            # Ejecutar comando
-            with open(temp_file, 'w') as f:
-                result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, text=True)
+            with gzip.open(filepath, 'wt', encoding='utf-8') as f_out:
+                f_out.write(json_data)
             
-            if result.returncode != 0:
-                raise Exception(f'Error mysqldump: {result.stderr[:200]}')
-            
-            # Comprimir archivo
-            with open(temp_file, 'rb') as f_in:
-                with gzip.open(filepath, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            
-            # Limpiar archivo temporal
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-            
-            # Calcular tamaño y checksum
+            # 3. REGISTRO EN BASE DE DATOS
             tamaño_mb = os.path.getsize(filepath) / (1024 * 1024)
             checksum = calcular_checksum(filepath)
             
-            # Crear registro en base de datos
-            nuevo_respaldo = Respaldo(
-                tipo_respaldo=f"programado_{programacion.tipo_respaldo}",
-                ruta_archivo=filepath,
-                tamaño_mb=round(tamaño_mb, 2),
-                realizado_por=f"Sistema (Programado #{programacion.id})",
-                almacenamiento=almacenamiento,
-                checksum=checksum,
-                fecha_respaldo=datetime.utcnow()
-            )
+            nuevo_respaldo = {
+                'tipo_respaldo': f"programado_{tipo}",
+                'ruta_archivo': filepath,
+                'tamaño_mb': round(tamaño_mb, 2),
+                'realizado_por': f"Sistema (Programado #{programacion['_id']})",
+                'almacenamiento': almacenamiento,
+                'checksum': checksum,
+                'fecha_respaldo': datetime.utcnow()
+            }
             
-            db.session.add(nuevo_respaldo)
-            db.session.commit()
-            
+            db.backups.insert_one(nuevo_respaldo)
             logger.info(f"Respaldo programado completado: {filename} ({tamaño_mb:.2f} MB)")
             
         except Exception as e:
@@ -178,12 +200,17 @@ class BackupScheduler:
     def ejecutar_ahora(self, programacion_id):
         """Ejecutar una programación inmediatamente"""
         with self.app.app_context():
-            programacion = ProgramacionRespaldo.query.get(programacion_id)
-            if programacion and programacion.activo:
+            db = get_db()
+            programacion = db.schedules.find_one({'_id': ObjectId(programacion_id)})
+            
+            if programacion and programacion.get('activo'):
                 self._execute_scheduled_backup(programacion)
-                programacion.ultima_ejecucion = datetime.utcnow()
-                programacion.proxima_ejecucion = programacion.calcular_proxima_ejecucion()
-                db.session.commit()
+                
+                prox = calcular_proxima_ejecucion(programacion)
+                db.schedules.update_one(
+                    {'_id': ObjectId(programacion_id)},
+                    {'$set': {'ultima_ejecucion': datetime.utcnow(), 'proxima_ejecucion': prox}}
+                )
                 return True
         return False
 

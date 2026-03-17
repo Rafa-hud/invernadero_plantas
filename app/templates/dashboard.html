@@ -116,7 +116,7 @@
                             </thead>
                             <tbody>
                                 {% for riego in ultimos_riegos %}
-                                <tr onclick="window.location='{{ url_for('plants.detalle_planta', id=riego.planta.id) }}'" style="cursor: pointer;">
+                                <tr onclick="window.location='{{ url_for('plants.detalle_planta', id=riego.planta._id) }}'" style="cursor: pointer;">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-seedling text-success me-2"></i>

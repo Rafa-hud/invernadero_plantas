@@ -1,6 +1,10 @@
 # run.py
 import os
 import sys
+from dotenv import load_dotenv
+
+# 1. Cargar las variables del .env ANTES de importar cualquier configuración
+load_dotenv()
 
 # Agregar el directorio actual al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +36,7 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Error: {e}")
         print("\n🔧 Solución de problemas:")
-        print("1. Verifica que MySQL/XAMPP esté corriendo")
+        print("1. Verifica tu conexión a Internet y tu MONGO_URI de Atlas")
         print("2. Verifica el puerto 5000 no esté en uso")
         print("3. Revisa los logs en la carpeta 'logs/'")
         input("\nPresiona Enter para salir...")

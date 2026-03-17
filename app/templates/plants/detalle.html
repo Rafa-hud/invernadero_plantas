@@ -33,7 +33,7 @@
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-image"></i> Imagen de la Planta</h5>
                     <small>
-                        {% if planta.tiene_imagen %}
+                        {% if planta.imagen_nombre or planta.imagen_url %}
                             <i class="fas fa-check-circle"></i> Con imagen
                         {% else %}
                             <i class="fas fa-times-circle"></i> Sin imagen
@@ -41,27 +41,34 @@
                     </small>
                 </div>
                 <div class="card-body text-center">
-                    {% if planta.tiene_imagen %}
-                        <img src="{{ planta.obtener_imagen() }}" 
+                    {% if planta.imagen_nombre or planta.imagen_url %}
+                        <img src="{% if planta.imagen_url %}{{ planta.imagen_url }}{% else %}{{ url_for('static', filename=planta.imagen_path) }}{% endif %}" 
                              class="img-fluid rounded shadow" 
                              style="max-height: 300px; object-fit: contain;"
                              alt="Imagen de {{ planta.nombre }}"
                              onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/planta_default.png') }}'">
                         <div class="mt-3">
-                            <small class="text-muted">
-                                {% if planta.es_imagen_local() %}
-                                    <i class="fas fa-hdd"></i> Imagen local
-                                {% elif planta.es_imagen_externa() %}
-                                    <i class="fas fa-globe"></i> URL externa
-                                {% endif %}
-                            </small>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    {% if planta.imagen_path %}
+                                        <span class="badge bg-light text-dark">
+                                            <i class="fas fa-hdd"></i> Imagen local
+                                        </span>
+                                    {% elif planta.imagen_url %}
+                                        <span class="badge bg-light text-dark">
+                                            <i class="fas fa-globe"></i> URL externa
+                                        </span>
+                                    {% endif %}
+                                </small>
+                            </div>
+
                         </div>
                     {% else %}
                         <div class="py-5">
                             <i class="fas fa-seedling fa-5x text-muted mb-3"></i>
                             <h5 class="text-muted">Sin imagen</h5>
                             <p class="text-muted mb-0">Esta planta no tiene imagen asociada</p>
-                            <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" class="btn btn-sm btn-outline-success mt-3">
+                            <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" class="btn btn-sm btn-outline-success mt-3">
                                 <i class="fas fa-plus"></i> Agregar imagen
                             </a>
                         </div>
@@ -185,18 +192,19 @@
                 <!-- Footer con botones de acción -->
                 <div class="card-footer bg-light">
                     <div class="d-flex gap-2 flex-wrap">
-                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" class="btn btn-primary">
+                        <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" class="btn btn-primary">
                             <i class="fas fa-edit"></i> Editar Planta
                         </a>
                         
-                        <!-- Botón de riego (temporalmente deshabilitado) -->
-                        <button class="btn btn-outline-success" disabled title="Función en desarrollo">
-                            <i class="fas fa-tint"></i> Registrar Riego
-                        </button>
+                        
+                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta._id) }}" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-tint"></i> Registrar riego
+                        </a>
                         
                         <!-- Ver en tienda (solo si está disponible para venta) -->
                         {% if planta.disponible_venta and planta.stock > 0 %}
-                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" class="btn btn-outline-info">
+                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta._id) }}" class="btn btn-outline-info">
                             <i class="fas fa-store"></i> Ver en Tienda
                         </a>
                         {% endif %}
@@ -257,16 +265,16 @@
                         {% endif %}
                     </div>
                     
-                    {% if current_user.rol == 'admin' or current_user.id == planta.usuario_id %}
+                    {% if current_user.rol == 'admin' or current_user._id == planta.usuarioid %}
                     <div class="d-grid gap-2">
                         {% if not planta.disponible_venta %}
-                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" class="btn btn-sm btn-outline-warning">
+                        <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" class="btn btn-sm btn-outline-warning">
                             <i class="fas fa-toggle-on"></i> Activar para venta
                         </a>
                         {% endif %}
                         
                         {% if planta.stock <= 0 and planta.disponible_venta %}
-                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" class="btn btn-sm btn-outline-warning">
+                        <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" class="btn btn-sm btn-outline-warning">
                             <i class="fas fa-boxes"></i> Reponer stock
                         </a>
                         {% endif %}
@@ -283,7 +291,7 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <small class="text-muted d-block mb-1">ID de la planta</small>
-                        <code class="bg-light p-2 rounded d-block">{{ planta.id }}</code>
+                        <code class="bg-light p-2 rounded d-block">{{ planta._id }}</code>
                     </div>
                     
                     <div class="mb-3">
@@ -328,18 +336,18 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                        <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" 
                            class="btn btn-outline-primary">
                             <i class="fas fa-edit"></i> Editar información
                         </a>
                         
-                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta.id) }}" 
+                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta._id) }}" 
                            class="btn btn-outline-success">
                             <i class="fas fa-tint"></i> Registrar riego
                         </a>
                         
                         {% if planta.disponible_venta %}
-                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
+                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta._id) }}" 
                            class="btn btn-outline-warning">
                             <i class="fas fa-eye"></i> Ver en tienda
                         </a>
@@ -387,7 +395,7 @@
                         <div class="row small text-muted">
                             <div class="col-6">
                                 <strong>ID:</strong><br>
-                                <code>{{ planta.id }}</code>
+                                <code>{{ planta._id }}</code>
                             </div>
                             <div class="col-6">
                                 <strong>Especie:</strong><br>

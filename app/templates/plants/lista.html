@@ -31,8 +31,8 @@
                 <!-- Imagen de la planta -->
                 <div class="position-relative">
                     <div class="card-img-top" style="height: 200px; overflow: hidden; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                        {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
-                            <img src="{{ planta.obtener_imagen() }}" 
+                        {% if planta.imagen_url or planta.imagen_path %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                            <img src="{{ planta.imagen_url if planta.imagen_url else url_for('static', filename=planta.imagen_path) }}"
                                  class="img-fluid w-100 h-100 object-fit-cover" 
                                  alt="{{ planta.nombre }}"
                                  style="transition: transform 0.5s ease;"
@@ -131,7 +131,7 @@
                             {% endif %}
                         </div>
                         <div>
-                            <i class="fas fa-id-card me-1"></i> #{{ planta.id }}
+                            <i class="fas fa-id-card me-1"></i> #{{ planta._id }}
                         </div>
                     </div>
                     
@@ -151,7 +151,7 @@
                     <!-- Botones principales -->
                     <div class="btn-group w-100 mb-2" role="group">
                         <!-- Botón Ver Detalles -->
-                        <a href="{{ url_for('plants.detalle_planta', id=planta.id) }}" 
+                        <a href="{{ url_for('plants.detalle_planta', id=planta._id) }}" 
                            class="btn btn-sm btn-outline-primary rounded-start" 
                            title="Ver detalles"
                            data-bs-toggle="tooltip">
@@ -160,7 +160,7 @@
                         </a>
                         
                         <!-- Botón Editar -->
-                        <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                        <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" 
                            class="btn btn-sm btn-outline-secondary" 
                            title="Editar"
                            data-bs-toggle="tooltip">
@@ -169,7 +169,7 @@
                         </a>
                         
                         <!-- Botón Registrar Riego -->
-                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta.id) }}"
+                        <a href="{{ url_for('plants.mostrar_formulario_riego', id=planta._id) }}"
                            class="btn btn-sm btn-outline-success" 
                            title="Registrar riego"
                            data-bs-toggle="tooltip">
@@ -181,7 +181,7 @@
                         <button type="button" 
                                 class="btn btn-sm btn-outline-danger rounded-end" 
                                 data-bs-toggle="modal" 
-                                data-bs-target="#deleteModal{{ planta.id }}"
+                                data-bs-target="#deleteModal{{ planta._id }}"
                                 title="Eliminar"
                                 data-bs-toggle="tooltip">
                             <i class="fas fa-trash"></i>
@@ -195,7 +195,7 @@
                         <button type="button" 
                                 class="btn btn-sm btn-outline-info" 
                                 data-bs-toggle="modal" 
-                                data-bs-target="#addToStoreModal{{ planta.id }}">
+                                data-bs-target="#addToStoreModal{{ planta._id }}">
                             <i class="fas fa-store"></i> 
                             <span class="ms-1">Agregar a Tienda</span>
                         </button>
@@ -203,7 +203,7 @@
                         <button type="button" 
                                 class="btn btn-sm btn-outline-warning" 
                                 data-bs-toggle="modal" 
-                                data-bs-target="#manageStoreModal{{ planta.id }}">
+                                data-bs-target="#manageStoreModal{{ planta._id }}">
                             <i class="fas fa-cog"></i> 
                             <span class="ms-1">Gestionar Tienda</span>
                         </button>
@@ -214,7 +214,7 @@
         </div>
 
         <!-- Modal para agregar a tienda -->
-        <div class="modal fade" id="addToStoreModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="addToStoreModal{{ planta._id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
@@ -225,8 +225,8 @@
                     </div>
                     <div class="modal-body">
                         <div class="text-center mb-4">
-                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
-                                <img src="{{ planta.obtener_imagen() }}" 
+                            {% if planta.imagen_nombre or planta.imagen_url %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{% if planta.imagen_url %}{{ planta.imagen_url }}{% else %}{{ url_for('static', filename=planta.imagen_path) }}{% endif %}" 
                                      class="img-fluid rounded" 
                                      style="max-height: 150px;"
                                      alt="{{ planta.nombre }}">
@@ -238,47 +238,47 @@
                             {% endif %}
                         </div>
                         
-                        <form id="addToStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.agregar_a_tienda', id=planta.id) }}">
-                            <input type="hidden" name="planta_id" value="{{ planta.id }}">
+                        <form id="addToStoreForm{{ planta._id }}" method="POST" action="{{ url_for('plants.agregar_a_tienda', id=planta._id) }}">
+                            <input type="hidden" name="planta_id" value="{{ planta._id }}">
                             
                             <div class="mb-3">
-                                <label for="precio{{ planta.id }}" class="form-label">
+                                <label for="precio{{ planta._id }}" class="form-label">
                                     <i class="fas fa-tag"></i> Precio *
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="precio{{ planta.id }}" 
+                                    <input type="number" class="form-control" id="precio{{ planta._id }}" 
                                            name="precio" min="0" step="0.01" required 
                                            placeholder="Ej: 19.99"
                                            value="{{ planta.precio or '' }}">
                                 </div>
-                                <small class="text-muted">Precio en dólares</small>
+                                <small class="text-muted">Precio en MXN</small>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="descripcion{{ planta.id }}" class="form-label">
+                                <label for="descripcion{{ planta._id }}" class="form-label">
                                     <i class="fas fa-align-left"></i> Descripción para tienda
                                 </label>
-                                <textarea class="form-control" id="descripcion{{ planta.id }}" 
+                                <textarea class="form-control" id="descripcion{{ planta._id }}" 
                                           name="descripcion" rows="3" 
                                           placeholder="Describe la planta para los clientes...">{{ planta.descripcion or '' }}</textarea>
                             </div>
                             
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <label for="stock{{ planta.id }}" class="form-label">
+                                    <label for="stock{{ planta._id }}" class="form-label">
                                         <i class="fas fa-box"></i> Stock *
                                     </label>
-                                    <input type="number" class="form-control" id="stock{{ planta.id }}" 
+                                    <input type="number" class="form-control" id="stock{{ planta._id }}" 
                                            name="stock" min="1" required 
                                            value="{{ planta.stock or 10 }}">
                                 </div>
                                 
                                 <div class="col-md-6">
-                                    <label for="categoria{{ planta.id }}" class="form-label">
+                                    <label for="categoria{{ planta._id }}" class="form-label">
                                         <i class="fas fa-tags"></i> Categoría *
                                     </label>
-                                    <select class="form-select" id="categoria{{ planta.id }}" name="categoria" required>
+                                    <select class="form-select" id="categoria{{ planta._id }}" name="categoria" required>
                                         <option value="">Seleccionar categoría</option>
                                         <option value="Interior" {% if planta.categoria == 'Interior' %}selected{% endif %}>Interior</option>
                                         <option value="Exterior" {% if planta.categoria == 'Exterior' %}selected{% endif %}>Exterior</option>
@@ -304,7 +304,7 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="fas fa-times"></i> Cancelar
                         </button>
-                        <button type="submit" form="addToStoreForm{{ planta.id }}" class="btn btn-info">
+                        <button type="submit" form="addToStoreForm{{ planta._id }}" class="btn btn-info">
                             <i class="fas fa-check"></i> Agregar a Tienda
                         </button>
                     </div>
@@ -313,7 +313,7 @@
         </div>
 
         <!-- Modal para gestionar en tienda -->
-        <div class="modal fade" id="manageStoreModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="manageStoreModal{{ planta._id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header bg-warning text-white">
@@ -324,8 +324,8 @@
                     </div>
                     <div class="modal-body">
                         <div class="text-center mb-4">
-                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
-                                <img src="{{ planta.obtener_imagen() }}" 
+                            {% if planta.imagen_nombre or planta.imagen_url %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{% if planta.imagen_url %}{{ planta.imagen_url }}{% else %}{{ url_for('static', filename=planta.imagen_path) }}{% endif %}" 
                                      class="img-fluid rounded" 
                                      style="max-height: 150px;"
                                      alt="{{ planta.nombre }}">
@@ -337,14 +337,14 @@
                             {% endif %}
                         </div>
                         
-                        <form id="manageStoreForm{{ planta.id }}" method="POST" action="{{ url_for('plants.actualizar_tienda', id=planta.id) }}">
+                        <form id="manageStoreForm{{ planta._id }}" method="POST" action="{{ url_for('plants.actualizar_tienda', id=planta._id) }}">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Estado en Tienda</label>
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="radio" name="disponible_venta" 
-                                               id="activa{{ planta.id }}" value="true" {% if planta.disponible_venta %}checked{% endif %}>
-                                        <label class="form-check-label" for="activa{{ planta.id }}">
+                                               id="activa{{ planta._id }}" value="true" {% if planta.disponible_venta %}checked{% endif %}>
+                                        <label class="form-check-label" for="activa{{ planta._id }}">
                                             <span class="badge bg-success p-2">
                                                 <i class="fas fa-check-circle me-1"></i> Disponible
                                             </span>
@@ -352,8 +352,8 @@
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="disponible_venta" 
-                                               id="inactiva{{ planta.id }}" value="false" {% if not planta.disponible_venta %}checked{% endif %}>
-                                        <label class="form-check-label" for="inactiva{{ planta.id }}">
+                                               id="inactiva{{ planta._id }}" value="false" {% if not planta.disponible_venta %}checked{% endif %}>
+                                        <label class="form-check-label" for="inactiva{{ planta._id }}">
                                             <span class="badge bg-secondary p-2">
                                                 <i class="fas fa-times-circle me-1"></i> No disponible
                                             </span>
@@ -362,32 +362,32 @@
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
-                                    <label for="stock_actual{{ planta.id }}" class="form-label fw-bold">
+                                    <label for="stock_actual{{ planta._id }}" class="form-label fw-bold">
                                         <i class="fas fa-box"></i> Stock Actual
                                     </label>
-                                    <input type="number" class="form-control" id="stock_actual{{ planta.id }}" 
+                                    <input type="number" class="form-control" id="stock_actual{{ planta._id }}" 
                                            name="stock" value="{{ planta.stock or 0 }}" min="0">
                                 </div>
                             </div>
                             
                             <div class="mb-4">
-                                <label for="precio_actual{{ planta.id }}" class="form-label fw-bold">
+                                <label for="precio_actual{{ planta._id }}" class="form-label fw-bold">
                                     <i class="fas fa-tag"></i> Precio Actual
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="precio_actual{{ planta.id }}" 
+                                    <input type="number" class="form-control" id="precio_actual{{ planta._id }}" 
                                            name="precio" value="{{ planta.precio or 0 }}" step="0.01" min="0">
                                 </div>
                             </div>
                         </form>
                         
                         <div class="d-grid gap-2 mt-4">
-                            <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
+                            <a href="{{ url_for('tienda.ver_planta_tienda', id=planta._id) }}" 
                                class="btn btn-outline-primary" target="_blank">
                                 <i class="fas fa-external-link-alt me-2"></i> Ver en tienda
                             </a>
-                            <a href="{{ url_for('plants.editar_planta', id=planta.id) }}" 
+                            <a href="{{ url_for('plants.editar_planta', id=planta._id) }}" 
                                class="btn btn-outline-secondary">
                                 <i class="fas fa-edit me-2"></i> Editar información completa
                             </a>
@@ -397,7 +397,7 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="fas fa-times"></i> Cerrar
                         </button>
-                        <button type="submit" form="manageStoreForm{{ planta.id }}" class="btn btn-warning">
+                        <button type="submit" form="manageStoreForm{{ planta._id }}" class="btn btn-warning">
                             <i class="fas fa-save"></i> Guardar Cambios
                         </button>
                     </div>
@@ -406,7 +406,7 @@
         </div>
 
         <!-- Modal de confirmación para eliminar -->
-        <div class="modal fade" id="deleteModal{{ planta.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="deleteModal{{ planta._id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header bg-danger text-white">
@@ -417,8 +417,8 @@
                     </div>
                     <div class="modal-body">
                         <div class="text-center mb-4">
-                            {% if planta.tiene_imagen %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
-                                <img src="{{ planta.obtener_imagen() }}" 
+                            {% if planta.imagen_nombre or planta.imagen_url %}  <!-- CAMBIO AQUÍ: sin paréntesis -->
+                                <img src="{% if planta.imagen_url %}{{ planta.imagen_url }}{% else %}{{ url_for('static', filename=planta.imagen_path) }}{% endif %}" 
                                      class="img-fluid rounded" 
                                      style="max-height: 150px;"
                                      alt="{{ planta.nombre }}">
@@ -448,7 +448,7 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="fas fa-times me-1"></i> Cancelar
                         </button>
-                        <form action="{{ url_for('plants.eliminar_planta', id=planta.id) }}" method="POST" style="display: inline;">
+                        <form action="{{ url_for('plants.eliminar_planta', id=planta._id) }}" method="POST" style="display: inline;">
                             <button type="submit" class="btn btn-danger">
                                 <i class="fas fa-trash me-1"></i> Sí, eliminar
                             </button>
@@ -489,7 +489,13 @@
                         </div>
                         <div class="col-md-3 col-6 mb-3">
                             <div class="text-center p-3 bg-light rounded">
-                                <h2 class="text-success mb-1">{{ plantas|selectattr('tiene_imagen')|list|length }}</h2>
+                                {% set contador = namespace(con_imagen=0) %}
+                                {% for p in plantas %}
+                                    {% if p.imagen_path or p.imagen_url %}
+                                        {% set contador.con_imagen = contador.con_imagen + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                                <h2 class="text-success mb-1">{{ contador.con_imagen }}</h2>
                                 <small class="text-muted">Con Imagen</small>
                             </div>
                         </div>
