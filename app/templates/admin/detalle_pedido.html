@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pedido #{{ pedido.id_pedido }}{% endblock %}
+{% block title %}Pedido #{{ pedido._id_pedido }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -10,7 +10,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1 class="display-6">
-                        <i class="fas fa-receipt text-primary"></i> Pedido #{{ pedido.id_pedido }}
+                        <i class="fas fa-receipt text-primary"></i> Pedido #{{ pedido._id_pedido }}
                         <span class="badge fs-6 ms-2 
                             {% if pedido.estado_pedido == 'pendiente' %}bg-warning
                             {% elif pedido.estado_pedido == 'procesando' %}bg-info
@@ -67,7 +67,7 @@
                         <div class="col-md-6 mb-3">
                             <h6>Datos del Pedido</h6>
                             <p class="mb-1">
-                                <strong>ID Pedido:</strong> #{{ pedido.id_pedido }}
+                                <strong>ID Pedido:</strong> #{{ pedido._id_pedido }}
                             </p>
                             <p class="mb-1">
                                 <strong>Fecha:</strong> {{ pedido.fecha_orden.strftime('%d/%m/%Y %H:%M') }}
@@ -226,7 +226,7 @@
                         <button class="btn btn-outline-secondary" onclick="generarFactura()">
                             <i class="fas fa-file-invoice"></i> Generar Factura
                         </button>
-                        <a href="mailto:{{ pedido.cliente.correo }}?subject=Pedido%20%23{{ pedido.id_pedido }}" 
+                        <a href="mailto:{{ pedido.cliente.correo }}?subject=Pedido%20%23{{ pedido._id_pedido }}" 
                            class="btn btn-outline-info">
                             <i class="fas fa-comment"></i> Contactar Cliente
                         </a>
@@ -324,7 +324,7 @@ function actualizarEstado(nuevoEstado) {
         }
     });
     
-    fetch('{{ url_for("main.actualizar_estado_pedido", id=pedido.id_pedido) }}', {
+    fetch('{{ url_for("main.actualizar_estado_pedido", id=pedido._id_pedido) }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -392,7 +392,7 @@ function enviarEmailCliente() {
 function generarFactura() {
     Swal.fire({
         title: 'Generar factura',
-        html: `¿Generar factura para el pedido #{{ pedido.id_pedido }}?`,
+        html: `¿Generar factura para el pedido #{{ pedido._id_pedido }}?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Generar PDF',
@@ -412,7 +412,7 @@ function generarFactura() {
                 Swal.fire({
                     icon: 'success',
                     title: '¡Factura generada!',
-                    html: `Factura del pedido #{{ pedido.id_pedido }} generada correctamente.<br>
+                    html: `Factura del pedido #{{ pedido._id_pedido }} generada correctamente.<br>
                            <button class="btn btn-success mt-3" onclick="descargarFactura()">
                                <i class="fas fa-download"></i> Descargar PDF
                            </button>`,

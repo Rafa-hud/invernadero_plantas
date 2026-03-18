@@ -1189,16 +1189,51 @@ def importar_respaldo():
             }
             
             db.backups.insert_one(nuevo_respaldo)
-            flash('✅ Respaldo importado exitosamente. Ahora puedes restaurarlo desde la lista.', 'success')
+            flash('Respaldo importado exitosamente. Ahora puedes restaurarlo desde la lista.', 'success')
             
         except Exception as e:
             current_app.logger.error(f"Error al importar respaldo: {e}")
-            flash(f'❌ Error al guardar el archivo: {str(e)}', 'danger')
+            flash(f'Error al guardar el archivo: {str(e)}', 'danger')
     else:
-        flash('❌ Formato no válido. El sistema de MongoDB solo acepta archivos .json.gz', 'warning')
+        flash('Formato no válido. El sistema de MongoDB solo acepta archivos .json.gz', 'warning')
         
     return redirect(url_for('backup.listar_respaldos'))
 
+
+@backup_bp.route('/descargar/<id>', methods=['GET'])
+@login_required
+def descargar_respaldo(id):
+    if current_user.rol != 'admin':
+        flash('Solo administradores pueden descargar respaldos', 'danger')
+        return redirect(url_for('backup.listar_respaldos'))
+    
+    try:
+        db = get_db()
+        # Buscar el documento en MongoDB
+        respaldo = db.backups.find_one({'_id': ObjectId(id)})
+        
+        if not respaldo:
+            flash('Respaldo no encontrado en la base de datos', 'danger')
+            return redirect(url_for('backup.listar_respaldos'))
+            
+        ruta_archivo = respaldo.get('ruta_archivo')
+        
+        # Verificar que el archivo físico realmente exista en la carpeta
+        if not ruta_archivo or not os.path.exists(ruta_archivo):
+            flash('El archivo físico del respaldo no existe en el servidor', 'danger')
+            return redirect(url_for('backup.listar_respaldos'))
+            
+        # Forzar la descarga del archivo al navegador del usuario
+        return send_file(
+            ruta_archivo,
+            as_attachment=True,
+            download_name=os.path.basename(ruta_archivo)
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error al descargar respaldo {id}: {e}")
+        flash(f'Error al descargar el archivo: {str(e)}', 'danger')
+        return redirect(url_for('backup.listar_respaldos'))
 
 # ========== PROGRAMACIONES ==========
 @backup_bp.route('/programaciones')

@@ -13,7 +13,7 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('backup.editar_programacion', id=programacion.id) }}" id="programacionForm">
+                    <form method="POST" action="{{ url_for('backup.editar_programacion', id=programacion._id) }}" id="programacionForm">
                         <!-- Tipo de respaldo -->
                         <div class="mb-3">
                             <label class="form-label">Tipo de Respaldo *</label>
@@ -141,7 +141,7 @@
                         <!-- Información de la programación -->
                         <div class="alert alert-light border">
                             <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Información de la programación</h6>
-                            <p class="mb-1"><strong>ID:</strong> #{{ programacion.id }}</p>
+                            <p class="mb-1"><strong>ID:</strong> #{{ programacion._id }}</p>
                             <p class="mb-1"><strong>Creada por:</strong> {{ programacion.usuario_creador }}</p>
                             <p class="mb-1"><strong>Fecha creación:</strong> {{ programacion.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
                             {% if programacion.ultima_ejecucion %}
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (desactivarBtn) {
         desactivarBtn.addEventListener('click', function() {
             if (confirm('¿Desactivar esta programación? Los respaldos automáticos dejarán de ejecutarse.')) {
-                fetch(`/respaldos/programaciones/{{ programacion.id }}/toggle`, {
+                fetch(`/respaldos/programaciones/{{ programacion._id }}/toggle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activarBtn) {
         activarBtn.addEventListener('click', function() {
             if (confirm('¿Activar esta programación? Los respaldos automáticos comenzarán a ejecutarse según la programación.')) {
-                fetch(`/respaldos/programaciones/{{ programacion.id }}/toggle`, {
+                fetch(`/respaldos/programaciones/{{ programacion._id }}/toggle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

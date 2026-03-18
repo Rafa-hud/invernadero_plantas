@@ -199,7 +199,7 @@
                                 {% for pedido in pedidos %}
                                 <tr class="order-card order-{{ pedido.estado_pedido }}">
                                     <td>
-                                        <strong>#{{ pedido.id_pedido }}</strong>
+                                        <strong>#{{ pedido._id_pedido }}</strong>
                                     </td>
                                     <td>
                                         <div>
@@ -234,7 +234,7 @@
                                     </td>
                                     <td>
                                         <select class="form-select form-select-sm status-select" 
-                                                data-pedido-id="{{ pedido.id_pedido }}" 
+                                                data-pedido-id="{{ pedido._id_pedido }}" 
                                                 onchange="actualizarEstado(this)">
                                             <option value="pendiente" {% if pedido.estado_pedido == 'pendiente' %}selected{% endif %}>
                                                 Pendiente
@@ -255,17 +255,17 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{{ url_for('main.admin_ver_pedido', id=pedido.id_pedido) }}" 
+                                            <a href="{{ url_for('main.admin_ver_pedido', id=pedido._id_pedido) }}" 
                                                class="btn btn-outline-primary" title="Ver detalles">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <button type="button" class="btn btn-outline-info" 
-                                                    onclick="enviarEmailCliente({{ pedido.id_pedido }})"
+                                                    onclick="enviarEmailCliente({{ pedido._id_pedido }})"
                                                     title="Enviar email">
                                                 <i class="fas fa-envelope"></i>
                                             </button>
                                             <button type="button" class="btn btn-outline-success" 
-                                                    onclick="generarFactura({{ pedido.id_pedido }})"
+                                                    onclick="generarFactura({{ pedido._id_pedido }})"
                                                     title="Generar factura">
                                                 <i class="fas fa-file-invoice"></i>
                                             </button>

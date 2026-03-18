@@ -95,7 +95,7 @@
                                 <tr>
                                     <td>
                                         <div>
-                                            <strong>#{{ prog.id }} - {{ prog.tipo_respaldo|title }}</strong>
+                                            <strong>#{{ prog._id }} - {{ prog.tipo_respaldo|title }}</strong>
                                             <br>
                                             <small class="text-muted">
                                                 <i class="far fa-clock"></i> {{ prog.hora_ejecucion.strftime('%H:%M') }}
@@ -190,7 +190,7 @@
                                             <!-- Ejecutar ahora -->
                                             <button type="button" 
                                                     class="btn btn-outline-success ejecutar-ahora-btn"
-                                                    data-id="{{ prog.id }}"
+                                                    data-id="{{ prog._id }}"
                                                     title="Ejecutar ahora">
                                                 <i class="fas fa-bolt"></i>
                                             </button>
@@ -198,14 +198,14 @@
                                             <!-- Activar/Desactivar -->
                                             <button type="button" 
                                                     class="btn {% if prog.activo %}btn-outline-warning{% else %}btn-outline-success{% endif %} toggle-programacion-btn"
-                                                    data-id="{{ prog.id }}"
+                                                    data-id="{{ prog._id }}"
                                                     data-activo="{{ prog.activo|tojson|safe }}"
                                                     title="{% if prog.activo %}Desactivar{% else %}Activar{% endif %}">
                                                 <i class="fas fa-power-off"></i>
                                             </button>
                                             
                                             <!-- Editar -->
-                                            <a href="{{ url_for('backup.editar_programacion', id=prog.id) }}"
+                                            <a href="{{ url_for('backup.editar_programacion', id=prog._id) }}"
                                                class="btn btn-outline-primary"
                                                title="Editar">
                                                 <i class="fas fa-edit"></i>
@@ -214,7 +214,7 @@
                                             <!-- Eliminar -->
                                             <button type="button" 
                                                     class="btn btn-outline-danger eliminar-programacion-btn"
-                                                    data-id="{{ prog.id }}"
+                                                    data-id="{{ prog._id }}"
                                                     title="Eliminar">
                                                 <i class="fas fa-trash"></i>
                                             </button>

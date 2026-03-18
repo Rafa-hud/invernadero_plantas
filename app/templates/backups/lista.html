@@ -456,13 +456,13 @@
                             <tbody>
                                 {% for respaldo in respaldos %}
                                 <tr class="backup-row" 
-                                    data-id="{{ respaldo.id }}"
+                                    data-id="{{ respaldo._id }}"
                                     data-type="{{ respaldo.tipo_respaldo }}"
                                     data-storage="{{ respaldo.almacenamiento }}"
                                     data-integrity="{{ 'verified' if respaldo.checksum else 'unverified' }}"
                                     data-name="{{ respaldo.ruta_archivo.split('/')[-1] if respaldo.ruta_archivo and '/' in respaldo.ruta_archivo else respaldo.ruta_archivo or '' }}">
                                     <td>
-                                        <span class="badge bg-secondary">#{{ respaldo.id }}</span>
+                                        <span class="badge bg-secondary">#{{ respaldo._id }}</span>
                                     </td>
                                     <td>
                                         {% if 'completo' in respaldo.tipo_respaldo %}
@@ -529,14 +529,14 @@
                                             <!-- Verificar integridad -->
                                             <button type="button" 
                                                     class="btn btn-outline-success verificar-respaldo-btn" 
-                                                    data-id="{{ respaldo.id }}"
+                                                    data-id="{{ respaldo._id }}"
                                                     title="Verificar integridad">
                                                 <i class="fas fa-check-circle"></i>
                                             </button>
                                             
                                             <!-- Descargar -->
                                             {% if respaldo.almacenamiento == 'local' and respaldo.ruta_archivo %}
-                                            <a href="{{ url_for('backup.descargar_respaldo', id=respaldo.id) }}" 
+                                            <a href="{{ url_for('backup.descargar_respaldo', id=respaldo._id) }}" 
                                                class="btn btn-outline-primary" 
                                                title="Descargar">
                                                 <i class="fas fa-download"></i>
@@ -552,7 +552,7 @@
                                             {% if respaldo.almacenamiento == 'local' %}
                                             <button type="button" 
                                                     class="btn btn-outline-warning copiar-usb-btn" 
-                                                    data-id="{{ respaldo.id }}"
+                                                    data-id="{{ respaldo._id }}"
                                                     title="Copiar a USB"
                                                     {% if not usb_mounted %}disabled{% endif %}>
                                                 <i class="fas fa-copy"></i>
@@ -567,7 +567,7 @@
                                             <!-- Restaurar -->
                                             <button type="button" 
                                                     class="btn btn-outline-info restaurar-respaldo-btn" 
-                                                    data-id="{{ respaldo.id }}"
+                                                    data-id="{{ respaldo._id }}"
                                                     data-tipo="{{ respaldo.tipo_respaldo }}"
                                                     title="Restaurar">
                                                 <i class="fas fa-undo"></i>
@@ -576,7 +576,7 @@
                                             <!-- Eliminar -->
                                             <button type="button" 
                                                     class="btn btn-outline-danger eliminar-respaldo-btn" 
-                                                    data-id="{{ respaldo.id }}"
+                                                    data-id="{{ respaldo._id }}"
                                                     title="Eliminar">
                                                 <i class="fas fa-trash"></i>
                                             </button>
