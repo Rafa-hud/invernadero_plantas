@@ -2004,12 +2004,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     // Ejecutar la petición Fetch
+
+                    // 1. Extraer el token de seguridad del HTML
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                    // 2. Preparar los headers
+                    const fetchHeaders = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    };
+
+                    // 3. Inyectar el token si existe (Flask busca X-CSRFToken)
+                    if (csrfToken) {
+                        fetchHeaders['X-CSRFToken'] = csrfToken;
+                    }
+                    
                     fetch(`/respaldos/eliminar/${respaldoId}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
+                        headers: fetchHeaders
                     })
                     .then(async response => {
                         // Consumimos el stream una sola vez de forma segura
