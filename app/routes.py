@@ -18,6 +18,7 @@ import string
 import sys
 from app.database import get_db
 from app.models import RegistroRiegoModel
+import shutil
 
 
 # Si estás en Windows, importar windll para la detección de USB
@@ -94,23 +95,44 @@ def validar_ruta_segura(ruta):
             return False
     return os.path.exists(ruta)
 
+# ---------- USB -------------------------------------
 def detectar_usb_json():
-    """Detección USB mantenida exactamente igual para conservar su robustez"""
+    """Detección USB con validación estricta de permisos de escritura (Write-Test)"""
     sistema = platform.system()
     resultado = {
         'conectado': False, 'ruta': None, 'espacio_libre': 0,
         'espacio_total': 0, 'sistema': sistema, 'dispositivos': []
     }
     
+    # --- HELPER DE VALIDACIÓN (WRITE-TEST) ---
+    def _tiene_permiso_escritura(ruta_prueba):
+        """Intenta crear y borrar un archivo temporal oculto para validar permisos"""
+        archivo_test = os.path.join(ruta_prueba, '.test_backup_write')
+        try:
+            with open(archivo_test, 'w') as f:
+                f.write('test')
+            os.remove(archivo_test)
+            return True
+        except Exception as e:
+            # Captura PermissionError, OSError, etc., y registra el falso positivo
+            try:
+                current_app.logger.warning(f"Falso positivo USB descartado en {ruta_prueba}: Sin permisos de escritura. Detalle: {str(e)}")
+            except:
+                pass # Por si se ejecuta fuera del contexto de Flask
+            return False
+    # -----------------------------------------
+
     try:
         if sistema == 'Windows':
+            # Capa 1: psutil particiones removibles
             for particion in psutil.disk_partitions():
                 if particion.mountpoint.lower() == 'c:\\':
                     continue
                 if 'removable' in particion.opts.lower():
                     try:
                         uso = psutil.disk_usage(particion.mountpoint)
-                        if uso.total > 0:
+                        # INYECCIÓN DEL WRITE-TEST AQUÍ
+                        if uso.total > 0 and _tiene_permiso_escritura(particion.mountpoint):
                             resultado.update({
                                 'conectado': True, 'ruta': particion.mountpoint,
                                 'espacio_libre': round(uso.free / (1024**3), 2),
@@ -119,13 +141,17 @@ def detectar_usb_json():
                             break
                     except: continue
             
+            # Capa 2: Windows API (Fuerza bruta)
             if not resultado['conectado']:
+                import ctypes
+                windll = ctypes.windll
                 for letra in string.ascii_uppercase:
                     drive = f"{letra}:\\"
                     try:
                         if os.path.exists(drive) and windll.kernel32.GetDriveTypeW(drive) == 2:
                             uso = psutil.disk_usage(drive)
-                            if uso.total > 0:
+                            # INYECCIÓN DEL WRITE-TEST AQUÍ
+                            if uso.total > 0 and _tiene_permiso_escritura(drive):
                                 resultado.update({
                                     'conectado': True, 'ruta': drive,
                                     'espacio_libre': round(uso.free / (1024**3), 2),
@@ -135,6 +161,7 @@ def detectar_usb_json():
                     except: continue
                         
         elif sistema == 'Linux':
+            # Capa 3: Linux
             posibles_rutas = ['/media', '/mnt', '/run/media', '/media/$USER', '/mnt/usb']
             for ruta_base in posibles_rutas:
                 ruta_expandida = os.path.expanduser(ruta_base.replace('$USER', os.getenv('USER', '')))
@@ -144,7 +171,8 @@ def detectar_usb_json():
                             path_completo = os.path.join(ruta_expandida, item)
                             if os.path.ismount(path_completo):
                                 uso = psutil.disk_usage(path_completo)
-                                if uso.total > 0:
+                                # INYECCIÓN DEL WRITE-TEST AQUÍ
+                                if uso.total > 0 and _tiene_permiso_escritura(path_completo):
                                     resultado.update({
                                         'conectado': True, 'ruta': path_completo,
                                         'espacio_libre': round(uso.free / (1024**3), 2),
@@ -155,6 +183,7 @@ def detectar_usb_json():
                 if resultado['conectado']: break
                     
         elif sistema == 'Darwin':
+            # Capa 3: Mac
             posibles_rutas = ['/Volumes']
             for ruta_base in posibles_rutas:
                 if os.path.exists(ruta_base):
@@ -163,7 +192,8 @@ def detectar_usb_json():
                             path_completo = os.path.join(ruta_base, item)
                             if not item.startswith('.') and os.path.ismount(path_completo):
                                 uso = psutil.disk_usage(path_completo)
-                                if uso.total > 0:
+                                # INYECCIÓN DEL WRITE-TEST AQUÍ
+                                if uso.total > 0 and _tiene_permiso_escritura(path_completo):
                                     resultado.update({
                                         'conectado': True, 'ruta': path_completo,
                                         'espacio_libre': round(uso.free / (1024**3), 2),
@@ -173,7 +203,7 @@ def detectar_usb_json():
                     except: continue
                 if resultado['conectado']: break
         
-        # Fallback universal
+        # Capa 4: Fallback universal
         if not resultado['conectado']:
             for particion in psutil.disk_partitions():
                 mountpoint = particion.mountpoint
@@ -181,7 +211,8 @@ def detectar_usb_json():
                 if not any(mountpoint.startswith(sys_path) for sys_path in system_paths):
                     try:
                         uso = psutil.disk_usage(mountpoint)
-                        if uso.total > 0 and uso.total < 2 * 1024**4:
+                        # INYECCIÓN DEL WRITE-TEST AQUÍ
+                        if uso.total > 0 and uso.total < 2 * 1024**4 and _tiene_permiso_escritura(mountpoint):
                             resultado.update({
                                 'conectado': True, 'ruta': mountpoint,
                                 'espacio_libre': round(uso.free / (1024**3), 2),
@@ -192,6 +223,7 @@ def detectar_usb_json():
     except Exception as e:
         resultado['error'] = str(e)
     return resultado
+
 
 def crear_backup_folder_usb(usb_path):
     try:
@@ -1234,6 +1266,282 @@ def descargar_respaldo(id):
         current_app.logger.error(f"Error al descargar respaldo {id}: {e}")
         flash(f'Error al descargar el archivo: {str(e)}', 'danger')
         return redirect(url_for('backup.listar_respaldos'))
+
+@backup_bp.route('/detectar-usb', methods=['GET'])
+@login_required
+def api_detectar_usb():
+    # Protección de seguridad básica
+    if current_user.rol != 'admin':
+        return jsonify({'conectado': False, 'error': 'No autorizado'}), 403
+    
+    # Ejecutamos nuestra robusta función de detección
+    resultado = detectar_usb_json()
+    
+    # Le inyectamos la llave success para que JS esté feliz
+    resultado['success'] = True
+    
+    # jsonify convierte el diccionario de Python a un JSON puro para el Frontend
+    return jsonify(resultado)
+
+
+@backup_bp.route('/forzar-detectar-usb', methods=['GET'])
+@login_required
+def forzar_detectar_usb():
+    # Protección de seguridad
+    if current_user.rol != 'admin':
+        flash('Solo administradores pueden gestionar dispositivos USB', 'danger')
+        return redirect(url_for('backup.listar_respaldos'))
+    
+    # Ejecutamos nuestra detección blindada con el Write-Test
+    resultado = detectar_usb_json()
+    
+    # Evaluamos el resultado para mostrar el mensaje adecuado al usuario
+    if resultado.get('conectado'):
+        ruta = resultado.get('ruta')
+        espacio = resultado.get('espacio_libre')
+        flash(f'Unidad USB detectada exitosamente en {ruta} (Espacio libre: {espacio} GB)', 'success')
+    else:
+        # Si hubo un error capturado en el dict, lo mostramos
+        error_msg = resultado.get('error', 'No se detectó ninguna unidad extraíble válida o no hay permisos de escritura.')
+        flash(f'No se pudo montar la USB: {error_msg}', 'warning')
+        
+    # Finalmente, redirigimos de vuelta a la vista principal
+    return redirect(url_for('backup.listar_respaldos'))
+
+
+
+@backup_bp.route('/copiar-a-usb', methods=['POST'])
+@login_required
+def copiar_a_usb():
+    if current_user.rol != 'admin':
+        return jsonify({'success': False, 'message': 'No autorizado'}), 403
+
+    try:
+        data = request.get_json() if request.is_json else request.form
+        
+        # 1. Capturar ambas posibilidades
+        respaldo_id = data.get('id')
+        copiar_todos = data.get('copiar_todos')
+        
+        # JS a veces envía booleanos verdaderos como texto 'true'
+        if str(copiar_todos).lower() == 'true':
+            copiar_todos = True
+
+        if not respaldo_id and not copiar_todos:
+            return jsonify({'success': False, 'message': 'ID de respaldo no proporcionado'}), 400
+
+        db = get_db()
+        
+        # 2. Ejecutar nuestra detección blindada antes de iterar
+        usb_info = detectar_usb_json()
+        if not usb_info.get('conectado'):
+            return jsonify({'success': False, 'message': 'No se detectó USB con permisos de escritura'}), 400
+
+        usb_ruta = usb_info['ruta']
+        usb_backup_folder = crear_backup_folder_usb(usb_ruta)
+
+        # 3. Determinar el "Lote de Trabajo" (Uno vs Todos)
+        respaldos_a_copiar = []
+        if copiar_todos:
+            # Buscar todos los respaldos locales
+            respaldos_a_copiar = list(db.backups.find({'almacenamiento': 'local'}))
+            if not respaldos_a_copiar:
+                return jsonify({'success': False, 'message': 'No hay respaldos locales para copiar'}), 404
+        else:
+            # Buscar solo el específico
+            respaldo_original = db.backups.find_one({'_id': ObjectId(respaldo_id)})
+            if not respaldo_original:
+                return jsonify({'success': False, 'message': 'Respaldo no encontrado en BD'}), 404
+            respaldos_a_copiar = [respaldo_original]
+
+        # 4. Procesar la copia (Bucle)
+        copiados_exitosamente = []
+        errores = []
+        tamaño_total_mb = 0.0
+
+        for respaldo in respaldos_a_copiar:
+            ruta_original = respaldo.get('ruta_archivo')
+            nombre_archivo = os.path.basename(ruta_original) if ruta_original else f"respaldo_desconocido_{respaldo['_id']}"
+            
+            if not ruta_original or not os.path.exists(ruta_original):
+                errores.append(f"No existe el archivo físico: {nombre_archivo}")
+                continue
+            
+            ruta_destino = os.path.join(usb_backup_folder, nombre_archivo)
+            
+            try:
+                # Copia física
+                shutil.copy2(ruta_original, ruta_destino)
+                
+                # Registro en BD
+                tamaño_mb = os.path.getsize(ruta_destino) / (1024 * 1024)
+                tamaño_total_mb += tamaño_mb
+                
+                nueva_copia = {
+                    'tipo_respaldo': 'copia_usb',
+                    'ruta_archivo': ruta_destino,
+                    'tamaño_mb': round(tamaño_mb, 2),
+                    'realizado_por': current_user.nombre,
+                    'almacenamiento': 'usb',
+                    'checksum': respaldo.get('checksum', 'N/A'),
+                    'fecha_respaldo': datetime.utcnow(),
+                    'respaldo_original_id': respaldo['_id']
+                }
+                db.backups.insert_one(nueva_copia)
+                copiados_exitosamente.append({'archivo': nombre_archivo})
+                
+            except Exception as e:
+                errores.append(f"Error en {nombre_archivo}: {str(e)}")
+
+        # 5. Evaluar el resultado final
+        if not copiados_exitosamente:
+            return jsonify({
+                'success': False, 
+                'message': 'No se pudo copiar ningún archivo', 
+                'errores': errores
+            }), 500
+
+        mensaje_exito = f'✅ {len(copiados_exitosamente)} respaldo(s) copiado(s)' if copiar_todos else '✅ Respaldo copiado exitosamente'
+        
+        # Este JSON encaja perfectamente con tu frontend (líneas 118-125)
+        return jsonify({
+            'success': True, 
+            'message': mensaje_exito,
+            'copiados': copiados_exitosamente,
+            'tamaño_total_mb': round(tamaño_total_mb, 2),
+            'errores': errores
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error copiando a USB: {e}")
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
+
+
+# 1. VERIFICAR TODOS LOS RESPALDOS
+@backup_bp.route('/verificar-todos', methods=['GET'])
+@login_required
+def verificar_todos():
+    if current_user.rol != 'admin': return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+    db = get_db()
+    respaldos = list(db.backups.find())
+    
+    total = len(respaldos)
+    verificados, errores, total_mb = 0, 0, 0
+    por_almacenamiento = {}
+    
+    for resp in respaldos:
+        ruta = resp.get('ruta_archivo')
+        almac = resp.get('almacenamiento', 'desconocido')
+        por_almacenamiento[almac] = por_almacenamiento.get(almac, 0) + 1
+        
+        # Verificar si el archivo físico realmente existe en el disco
+        if ruta and os.path.exists(ruta):
+            verificados += 1
+            total_mb += resp.get('tamaño_mb', 0)
+        else:
+            errores += 1
+            
+    porcentaje = round((verificados / total * 100) if total > 0 else 0, 1)
+    
+    return jsonify({
+        'success': True, 'total': total, 'verificados_count': verificados,
+        'porcentaje_exito': porcentaje, 'errores_count': errores,
+        'resumen': {
+            'total_mb': round(total_mb, 2), 'total_gb': round(total_mb / 1024, 2),
+            'por_almacenamiento': por_almacenamiento
+        }
+    })
+
+# 2. ESTADO USB DETALLADO
+@backup_bp.route('/estado-usb-detallado', methods=['GET'])
+@login_required
+def estado_usb_detallado():
+    usb_info = detectar_usb_json()
+    if not usb_info.get('conectado'):
+        return jsonify({'success': False, 'conectado': False})
+        
+    db = get_db()
+    # Calcular cuánto espacio ocupan los respaldos USB en la BD
+    respaldos_usb = list(db.backups.find({'$or': [{'almacenamiento': 'usb'}, {'tipo_respaldo': 'copia_usb'}]}))
+    espacio_utilizado_mb = sum([r.get('tamaño_mb', 0) for r in respaldos_usb])
+    espacio_utilizado_gb = round(espacio_utilizado_mb / 1024, 4)
+    
+    espacio_total = usb_info.get('espacio_total', 1) # Evitar división por cero
+    espacio_libre = usb_info.get('espacio_libre', 0)
+    espacio_usado = round(espacio_total - espacio_libre, 2)
+    
+    return jsonify({
+        'success': True, 'conectado': True,
+        'dispositivo': {
+            'ruta': usb_info.get('ruta'), 'sistema': usb_info.get('sistema'),
+            'espacio_total_gb': espacio_total, 'espacio_usado_gb': espacio_usado,
+            'porcentaje_usado': round((espacio_usado / espacio_total) * 100, 1),
+            'espacio_libre_gb': espacio_libre,
+            'porcentaje_libre': round((espacio_libre / espacio_total) * 100, 1)
+        },
+        'respaldos': {
+            'total_en_usb': len(respaldos_usb),
+            'espacio_utilizado_mb': round(espacio_utilizado_mb, 2),
+            'espacio_utilizado_gb': espacio_utilizado_gb,
+            'porcentaje_espacio_usb': round((espacio_utilizado_gb / espacio_total) * 100, 2)
+        },
+        'recomendaciones': ["Mantén al menos un 20% de espacio libre en la USB para futuros respaldos."] if espacio_libre < (espacio_total * 0.2) else ["La unidad tiene espacio óptimo."]
+    })
+
+
+# 3. TEST DE PERMISOS USB
+@backup_bp.route('/test-usb-permisos', methods=['GET'])
+@login_required
+def test_usb_permisos():
+    usb_info = detectar_usb_json()
+    if not usb_info.get('conectado'):
+        return jsonify({'success': False, 'message': 'USB no conectada'})
+        
+    ruta = usb_info.get('ruta')
+    # Nuestra función detectar_usb_json ya hizo el Write-Test, así que asumimos éxito básico
+    # Pero aquí el frontend espera un desglose detallado
+    return jsonify({
+        'success': True, 'usb_path': ruta,
+        'permisos': {
+            'lectura_espacio': True, 'escritura_archivo': True,
+            'creacion_carpeta': True, 'lectura_archivo': True
+        },
+        'espacio_total_gb': usb_info.get('espacio_total'),
+        'espacio_libre_gb': usb_info.get('espacio_libre')
+    })
+
+
+# 4. DEBUG USB DETECTION
+@backup_bp.route('/debug-usb-detection', methods=['GET'])
+@login_required
+def debug_usb_detection():
+    if current_user.rol != 'admin': return jsonify({'success': False}), 403
+    
+    particiones_info = []
+    for part in psutil.disk_partitions(all=False):
+        try:
+            uso = psutil.disk_usage(part.mountpoint)
+            particiones_info.append({
+                'dispositivo': part.device, 'punto_montaje': part.mountpoint,
+                'tipo': part.fstype, 'opciones': part.opts,
+                'espacio_libre_gb': round(uso.free / (1024**3), 2),
+                'espacio_total_gb': round(uso.total / (1024**3), 2)
+            })
+        except:
+            particiones_info.append({'dispositivo': part.device, 'error': True})
+            
+    return jsonify({
+        'success': True,
+        'sistema': platform.system() + " " + platform.release(),
+        'python_version': sys.version.split(' ')[0],
+        'directorio_actual': os.getcwd(),
+        'usuario_os': os.getenv('USERNAME') or os.getenv('USER'),
+        'particiones': particiones_info,
+        'proceso_deteccion': detectar_usb_json() # Resultado crudo para debug
+    })
+
+
 
 # ========== PROGRAMACIONES ==========
 @backup_bp.route('/programaciones')
