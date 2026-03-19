@@ -192,7 +192,7 @@
                                     <th>Productos</th>
                                     <th>Total</th>
                                     <th>Estado</th>
-                                    <th>Acciones</th>
+                                    <!--<th>Acciones</th>-->
                                 </tr>
                             </thead>
                             <tbody>
@@ -233,26 +233,17 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <select class="form-select form-select-sm status-select" 
-                                                data-pedido-id="{{ pedido._id_pedido }}" 
-                                                onchange="actualizarEstado(this)">
-                                            <option value="pendiente" {% if pedido.estado_pedido == 'pendiente' %}selected{% endif %}>
-                                                Pendiente
-                                            </option>
-                                            <option value="procesando" {% if pedido.estado_pedido == 'procesando' %}selected{% endif %}>
-                                                Procesando
-                                            </option>
-                                            <option value="enviado" {% if pedido.estado_pedido == 'enviado' %}selected{% endif %}>
-                                                Enviado
-                                            </option>
-                                            <option value="completado" {% if pedido.estado_pedido == 'completado' %}selected{% endif %}>
-                                                Completado
-                                            </option>
-                                            <option value="cancelado" {% if pedido.estado_pedido == 'cancelado' %}selected{% endif %}>
-                                                Cancelado
-                                            </option>
-                                        </select>
-                                    </td>
+    <select class="form-select form-select-sm status-select" 
+            data-pedido-id="{{ pedido._id }}" 
+            onchange="actualizarEstado(this)">
+        <option value="pendiente" {% if pedido.estado_pedido == 'pendiente' %}selected{% endif %}>Pendiente</option>
+        <option value="procesando" {% if pedido.estado_pedido == 'procesando' %}selected{% endif %}>Procesando</option>
+        <option value="enviado" {% if pedido.estado_pedido == 'enviado' %}selected{% endif %}>Enviado</option>
+        <option value="completado" {% if pedido.estado_pedido == 'completado' %}selected{% endif %}>Completado</option>
+        <option value="cancelado" {% if pedido.estado_pedido == 'cancelado' %}selected{% endif %}>Cancelado</option>
+    </select>
+</td>
+<!--
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
                                             <a href="{{ url_for('main.admin_ver_pedido', id=pedido._id_pedido) }}" 
@@ -270,7 +261,7 @@
                                                 <i class="fas fa-file-invoice"></i>
                                             </button>
                                         </div>
-                                    </td>
+                                    </td>-->
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -308,6 +299,7 @@ function actualizarEstado(select) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() }}"
                 },
                 body: JSON.stringify({estado: nuevoEstado})
             })
@@ -500,6 +492,54 @@ function generarFactura(pedidoId) {
                 }
             });
             
+
+
+
+
+
+
+<script>
+function actualizarEstado(pedidoId, nuevoEstado) {
+    // Confirmación visual en consola
+    console.log("Petición: Actualizando pedido " + pedidoId + " a " + nuevoEstado);
+
+    fetch(`/admin/pedido/${pedidoId}/actualizar-estado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+            'X-CSRFToken': "{{ csrf_token() }}"
+            // No agregues nada de CSRF aquí si no tienes configurado Flask-WTF
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error en la respuesta del servidor');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // 1. Notificación al usuario
+            alert("¡Éxito! El estado ahora es: " + nuevoEstado);
+            
+            // 2. Intentamos actualizar el texto del badge si existe el ID
+            const badge = document.getElementById(`badge-${pedidoId}`);
+            if (badge) {
+                badge.innerText = nuevoEstado.toUpperCase();
+            }
+
+            // 3. Recargamos la página para que todos los colores y cálculos se refresquen
+            location.reload(); 
+        } else {
+            alert("No se pudo actualizar: " + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error en fetch:', error);
+        alert("Error de conexión: Asegúrate de que el servidor esté encendido.");
+    });
+}
+</script>
+<script>
             // Simular generación de factura
             setTimeout(() => {
                 Swal.close();
@@ -512,9 +552,51 @@ function generarFactura(pedidoId) {
                            </a>`,
                     showConfirmButton: false
                 });
-            }, 1500);
+           }, 1500);
+       }
+   });
+}
+</script>
+<script>
+function actualizarEstado(selectElement) {
+    const pedidoId = selectElement.getAttribute('data-pedido-id');
+    const nuevoEstado = selectElement.value;
+    // ... resto del código que te pasé ...
+    <script>
+function actualizarEstado(selectElement) {
+    // Extraemos el ID y el nuevo valor del elemento <select>
+    const pedidoId = selectElement.getAttribute('data-pedido-id');
+    const nuevoEstado = selectElement.value;
+
+    if (!pedidoId) {
+        alert("Error: No se encontró el ID del pedido.");
+        return;
+    }
+
+    fetch(`/admin/pedido/${pedidoId}/actualizar-estado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+            'X-CSRFToken': "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("¡Estado actualizado a " + nuevoEstado + "!");
+            // Opcional: Recargar para ver cambios de stock o fechas
+            location.reload(); 
+        } else {
+            alert("Error: " + data.message);
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("Error de comunicación con el servidor.");
     });
+}
+</script>
 }
 </script>
 {% endblock %}

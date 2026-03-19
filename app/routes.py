@@ -649,6 +649,14 @@ def buscar_plantas():
     return render_template('tienda/buscar.html', plantas=plantas, query=query, 
                          categorias=categorias, categoria_seleccionada=categoria)
 
+
+@tienda_bp.route('/mi-perfil')
+@login_required
+def mi_perfil():
+    # Asegúrate de tener el archivo templates/tienda/perfil.html creado
+    return render_template('tienda/perfil.html', usuario=current_user)
+
+
 # ========== CARRITO DE COMPRAS ==========
 @tienda_bp.route('/carrito')
 @login_required
@@ -801,59 +809,125 @@ def dashboard():
                          ultimos_riegos=ultimos_riegos,
                          ultimo_backup=ultimo_backup_fecha)
 
+
+
+#
+#
+#-----------------------------------------------------------------------------------
 # ========== ADMIN - GESTIÓN DE PEDIDOS ==========
+from bson import ObjectId
+from flask import request, jsonify, render_template, redirect, url_for, flash
+from datetime import datetime
+
 @main_bp.route('/admin/pedidos')
 @login_required
 def admin_pedidos():
-    if current_user.rol != 'admin': return redirect(url_for('main.dashboard'))
+    if current_user.rol != 'admin': 
+        return redirect(url_for('main.dashboard'))
     
+    db = get_db()
     estado = request.args.get('estado', 'todos')
     query = {} if estado == 'todos' else {'estado_pedido': estado}
     
-    # Agregamos los datos del cliente al pedido para la tabla
-    pedidos = list(get_db().orders.find(query).sort('fecha_orden', -1))
-    for pedido in pedidos:
-        cliente = get_db().users.find_one({'_id': pedido['id_cliente']})
-        pedido['nombre_cliente'] = cliente['nombre'] if cliente else 'Usuario Eliminado'
-        pedido['correo_cliente'] = cliente['correo'] if cliente else ''
+    pedidos = list(db.orders.find(query).sort('fecha_orden', -1))
     
+    for pedido in pedidos:
+        # --- Lógica de Cliente (para evitar el error anterior) ---
+        u = db.users.find_one({'_id': pedido.get('id_cliente')})
+        pedido['cliente'] = u if u else {'nombre': 'Usuario Eliminado', 'correo': 'N/A'}
+        
+        # --- Lógica de Detalles/Plantas (para evitar el error ACTUAL) ---
+        # Recorremos los detalles para asegurar que exista el objeto 'planta'
+        detalles_procesados = []
+        for det in pedido.get('detalles', []):
+            # Si el HTML busca 'detalle.planta.nombre', creamos esa estructura
+            if 'planta' not in det:
+                det['planta'] = {'nombre': det.get('nombre', 'Planta desconocida')}
+            detalles_procesados.append(det)
+        
+        pedido['detalles'] = detalles_procesados
+            
     return render_template('admin/pedidos.html', pedidos=pedidos, estado=estado)
 
 @main_bp.route('/admin/pedido/<id>')
 @login_required
 def admin_ver_pedido(id):
-    if current_user.rol != 'admin': return redirect(url_for('main.dashboard'))
+    if current_user.rol != 'admin': 
+        return redirect(url_for('main.dashboard'))
     
-    pedido = get_db().orders.find_one({'_id': ObjectId(id)})
-    if not pedido:
-        flash('Pedido no encontrado', 'danger')
+    db = get_db()
+    try:
+        # Buscamos el pedido específico convirtiendo el ID de texto a ObjectId
+        pedido = db.orders.find_one({'_id': ObjectId(id)})
+        if not pedido:
+            flash('Pedido no encontrado', 'danger')
+            return redirect(url_for('main.admin_pedidos'))
+        
+        # Buscamos los datos del cliente para mostrar en el detalle
+        cliente = db.users.find_one({'_id': pedido.get('id_cliente')})
+        pedido['cliente'] = cliente
+        
+        # Los detalles (plantas compradas) ya están en pedido['detalles'] gracias a MongoDB
+        return render_template('admin/detalle_pedido.html', 
+                               pedido=pedido, 
+                               detalles=pedido.get('detalles', []))
+    except Exception as e:
+        flash(f'Error al cargar el pedido: {str(e)}', 'danger')
         return redirect(url_for('main.admin_pedidos'))
-    
-    cliente = get_db().users.find_one({'_id': pedido['id_cliente']})
-    pedido['cliente'] = cliente
-    
-    # Ya no necesitamos hacer query a PedidoDetalle, ¡vienen embebidos en pedido['detalles']!
-    return render_template('admin/detalle_pedido.html', pedido=pedido, detalles=pedido.get('detalles', []))
 
 @main_bp.route('/admin/pedido/<id>/actualizar-estado', methods=['POST'])
 @login_required
 def actualizar_estado_pedido(id):
-    if current_user.rol != 'admin': return jsonify({'success': False}), 403
+    if current_user.rol != 'admin': 
+        return jsonify({'success': False, 'message': 'No autorizado'}), 403
     
-    nuevo_estado = request.json.get('estado', '')
-    if nuevo_estado not in ['pendiente', 'procesando', 'enviado', 'completado', 'cancelado']:
+    db = get_db()
+    data = request.get_json()
+    nuevo_estado = data.get('estado', '')
+    
+    estados_validos = ['pendiente', 'procesando', 'enviado', 'completado', 'cancelado']
+    if nuevo_estado not in estados_validos:
         return jsonify({'success': False, 'message': 'Estado inválido'}), 400
     
     try:
+        # 1. Obtener el estado anterior para saber si debemos ajustar stock
+        pedido_actual = db.orders.find_one({'_id': ObjectId(id)})
+        if not pedido_actual:
+            return jsonify({'success': False, 'message': 'Pedido no encontrado'}), 404
+
+        # 2. Lógica especial para CANCELACIÓN (Devolver stock)
+        # Si el pedido no estaba cancelado y ahora se cancela, devolvemos las plantas al stock
+        if nuevo_estado == 'cancelado' and pedido_actual.get('estado_pedido') != 'cancelado':
+            for item in pedido_actual.get('detalles', []):
+                db.plants.update_one(
+                    {'_id': item['planta_id']}, 
+                    {'$inc': {'stock': item['cantidad']}} # Incrementa el stock
+                )
+
+        # 3. Preparar los campos de actualización
         update_fields = {'estado_pedido': nuevo_estado}
-        if nuevo_estado == 'enviado': update_fields['fecha_envio'] = datetime.utcnow()
-        elif nuevo_estado == 'completado': update_fields['fecha_completado'] = datetime.utcnow()
+        if nuevo_estado == 'enviado':
+            update_fields['fecha_envio'] = datetime.utcnow()
+        elif nuevo_estado == 'completado':
+            update_fields['fecha_completado'] = datetime.utcnow()
         
-        get_db().orders.update_one({'_id': ObjectId(id)}, {'$set': update_fields})
-        return jsonify({'success': True, 'estado': nuevo_estado})
+        # 4. Guardar cambios en la base de datos
+        db.orders.update_one({'_id': ObjectId(id)}, {'$set': update_fields})
+        
+        return jsonify({
+            'success': True,
+            'message': f'Pedido actualizado a {nuevo_estado}',
+            'estado': nuevo_estado
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-
+    
+    
+    
+    
+#
+#-----------------------------------------------------------------------------
 # ========== ADMIN - ESTADÍSTICAS TIENDA (AGGREGATION PIPELINES) ==========
 @main_bp.route('/admin/estadisticas-tienda')
 @login_required
@@ -948,30 +1022,206 @@ def estadisticas_tienda():
                          tasa_conversion=tasa_conversion,
                          tasa_cancelacion=tasa_cancelacion)
 
-# ========== REPORTES ROUTES ==========
+#--------------------------------------------------------------------
+# ========== RESPALDO Y ANALISIS ==========
+# ========== RESPALDO Y ANALISIS ==========
+from datetime import datetime, timedelta # Importación única al inicio
+
 @reports_bp.route('/')
 @login_required
 def reportes():
-    if current_user.rol != 'admin': return redirect(url_for('main.dashboard'))
+    if current_user.rol != 'admin':
+        return redirect(url_for('main.dashboard'))
     
     db = get_db()
+    # Usamos la clase datetime que importamos arriba
+    hoy = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Las lógicas de /reportes son casi idénticas a estadísticas_tienda
-    # Aquí puedes aplicar los mismos pipelines para extraer ventas de hoy, 
-    # clientes nuevos, etc. Mantengo la estructura básica requerida.
-    
+    # 1. PLANTAS
     plantas_stats = {
         'total': db.plants.count_documents({}),
         'activas': db.plants.count_documents({'estado': 'activa'}),
         'en_venta': db.plants.count_documents({'disponible_venta': True, 'estado': 'activa'}),
-        'tendencia': 5.2 
+        'tendencia': 5.2
     }
     
-    # Aquí puedes renderizar tu plantilla reports/index.html pasándole las variables necesarias
-    # igual que lo hacías con SQL, solo extrayendo los datos de MongoDB con los pipelines que te mostré arriba.
+    # 2. PEDIDOS (Cálculos de ventas y productos)
+    total_pedidos = db.orders.count_documents({})
+    #-------------------------PIPELINE********************
+    pipeline_pedidos = [
+        {"$group": {
+            "_id": None,
+            "total_ventas": {"$sum": "$total"},
+            "total_productos": {"$sum": {"$size": "$detalles"}}
+        }}
+    ]
+    resultado_pedidos = list(db.orders.aggregate(pipeline_pedidos))
     
-    return render_template('reports/index.html', plantas_stats=plantas_stats)
+    pipeline_hoy = [
+        {"$match": {"fecha": {"$gte": hoy}}},
+        {"$group": {"_id": None, "total": {"$sum": "$total"}}}
+    ]
+    resultado_hoy = list(db.orders.aggregate(pipeline_hoy))
     
+    ventas_suma = resultado_pedidos[0]['total_ventas'] if resultado_pedidos else 0.0
+    ventas_hoy = resultado_hoy[0]['total'] if resultado_hoy else 0.0
+
+    pedidos_stats = {
+        'ventas_totales': ventas_suma,
+        'ventas_hoy': ventas_hoy,
+        'cantidad_pedidos': total_pedidos,
+        'ticket_promedio': (ventas_suma / total_pedidos) if total_pedidos > 0 else 0.0,
+        'productos_por_pedido': (resultado_pedidos[0]['total_productos'] / total_pedidos) if total_pedidos > 0 else 0.0,
+        'por_estado': {
+            'pendiente': db.orders.count_documents({'estado': 'pendiente'}),
+            'completado': db.orders.count_documents({'estado': 'completado'}),
+            'cancelado': db.orders.count_documents({'estado': 'cancelado'})
+        },
+        'tendencia_ventas': 0.0
+    }
+
+    # 3. CLIENTES
+    clientes_con_pedidos_ids = db.orders.distinct('usuario_id')
+    clientes_stats = {
+        'total': db.users.count_documents({'rol': 'cliente'}), 
+        'con_pedidos': len(clientes_con_pedidos_ids),
+        'nuevos_hoy': db.users.count_documents({'rol': 'cliente', 'fecha_registro': {'$gte': hoy}}),
+        'nuevos_este_mes': 0,
+        'tendencia_clientes': 0.0
+    }
+    
+    # 4. RESPALDOS
+    pipeline_respaldos = [{"$group": {"_id": None, "total_size": {"$sum": "$tamaño_bytes"}}}]
+    res_respaldos = list(db.backups.aggregate(pipeline_respaldos))
+    total_bytes = res_respaldos[0]['total_size'] if res_respaldos else 0
+    
+    respaldos_stats = {
+        'total': db.backups.count_documents({}),
+        'exitosos': db.backups.count_documents({'estado': 'exitoso'}),
+        'fallidos': db.backups.count_documents({'estado': 'fallido'}),
+        'tamaño_total_gb': total_bytes / (1024**3),
+        'tamaño_local_mb': total_bytes / (1024**2),
+        'tamaño_usb_mb': total_bytes / (1024**2),
+        'ultimo_respaldo': "N/A"
+    }
+    
+    # 5. LISTADOS
+    accesos_recientes = list(db.access_logs.find().sort('fecha', -1).limit(3))
+    
+    pipeline_top = [
+        {"$unwind": "$detalles"},
+        {"$group": {"_id": "$detalles.nombre", "cantidad": {"$sum": "$detalles.cantidad"}}},
+        {"$sort": {"cantidad": -1}},
+        {"$limit": 5}
+    ]
+    top_productos = list(db.orders.aggregate(pipeline_top))
+    pedidos_recientes = list(db.orders.find().sort('fecha', -1).limit(5))
+    top_plantas = [] 
+    
+    # 5.5 CLIENTES DESTACADOS
+    pipeline_clientes = [
+        {"$group": {
+            "_id": "$usuario_id", 
+            "total_compras": {"$sum": "$total"},
+            "total_pedidos": {"$sum": 1}
+        }},
+        {"$sort": {"total_compras": -1}}, 
+        {"$limit": 10}
+    ]
+    
+    top_clientes_raw = list(db.orders.aggregate(pipeline_clientes))
+    clientes_destacados = []
+    for item in top_clientes_raw:
+        user_data = db.users.find_one({"_id": item["_id"]})
+        clientes_destacados.append({
+            "nombre": user_data["nombre"] if user_data else "Usuario Anónimo",
+            "total_compras": item["total_compras"],
+            "total_pedidos": item["total_pedidos"]
+        })
+
+    # 5.6 VENTAS MENSUALES
+    ventas_mensuales = [0.0] * 12
+    try:
+        pipeline_mensual = [
+            {"$match": {"fecha": {"$ne": None, "$type": "date"}}},
+            {"$group": {"_id": {"$month": "$fecha"}, "total": {"$sum": "$total"}}},
+            {"$sort": {"_id": 1}}
+        ]
+        resultados_mensuales = list(db.orders.aggregate(pipeline_mensual))
+        for res in resultados_mensuales:
+            mes_num = res.get('_id')
+            if isinstance(mes_num, int) and 1 <= mes_num <= 12:
+                ventas_mensuales[mes_num - 1] = float(res.get('total', 0.0))
+    except Exception as e:
+        print(f"Error mensual: {e}")
+        
+    # 5.7 CRECIMIENTO DE CLIENTES
+    crecimiento_clientes = [0] * 12
+    try:
+        pipeline_clientes_mes = [
+            {"$match": {"rol": "cliente", "fecha_registro": {"$ne": None, "$type": "date"}}},
+            {"$group": {"_id": {"$month": "$fecha_registro"}, "total": {"$sum": 1}}},
+            {"$sort": {"_id": 1}}
+        ]
+        res_clientes = list(db.users.aggregate(pipeline_clientes_mes))
+        for r in res_clientes:
+            mes_idx = r['_id'] - 1
+            crecimiento_clientes[mes_idx] = r['total']
+    except Exception as e:
+        print(f"Error clientes: {e}")
+
+    # 5.8 TIPOS DE RESPALDOS
+    tipos_respaldos = {"labels": [], "data": []}
+    try:
+        pipeline_resp = [{"$group": {"_id": "$tipo", "count": {"$sum": 1}}}]
+        res_resp = list(db.backups.aggregate(pipeline_resp))
+        tipos_respaldos["labels"] = [str(r['_id']) for r in res_resp]
+        tipos_respaldos["data"] = [r['count'] for r in res_resp]
+    except Exception as e:
+        print(f"Error respaldos: {e}")
+
+    # 5.10 VENTAS DIARIAS (Últimos 7 días)
+    ventas_diarias = {"labels": [], "data": []}
+    try:
+        # Quitamos el import de aquí para evitar el UnboundLocalError
+        siete_dias_atras = hoy - timedelta(days=7)
+        pipeline_diario = [
+            {"$match": {"fecha": {"$gte": siete_dias_atras}}},
+            {"$group": {
+                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$fecha"}},
+                "total": {"$sum": "$total"}
+            }},
+            {"$sort": {"_id": 1}}
+        ]
+        res_diario = list(db.orders.aggregate(pipeline_diario))
+        ventas_diarias["labels"] = [r['_id'] for r in res_diario]
+        ventas_diarias["data"] = [float(r['total']) for r in res_diario]
+    except Exception as e:
+        print(f"Error ventas diarias: {e}")
+        
+    # 6. RENDERIZADO FINAL
+    return render_template('reports/index.html',
+                           plantas_stats=plantas_stats,
+                           pedidos_stats=pedidos_stats,
+                           clientes_stats=clientes_stats,
+                           respaldos_stats=respaldos_stats,
+                           pedidos_recientes=pedidos_recientes,
+                           accesos_recientes=accesos_recientes,
+                           top_productos=top_productos,
+                           top_plantas=top_plantas,
+                           clientes_destacados=clientes_destacados,
+                           ventas_mensuales=ventas_mensuales,
+                           crecimiento_clientes=crecimiento_clientes,
+                           tipos_respaldos=tipos_respaldos,
+                           ventas_diarias=ventas_diarias)
+    
+    
+    
+    
+    
+    
+    
+#----------------------------------------------------------------------------------------
 # (Omito por brevedad las APIs de reportes JSON, pero la lógica es aplicar un db.collection.find() y retornar jsonify)
 
 # routes.py (PARTE 4: Sistema de Respaldos Críticos y Programaciones)
