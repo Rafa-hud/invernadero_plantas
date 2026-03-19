@@ -549,7 +549,7 @@
                                             </button>
                                             {% endif %}
                                             
-                                            <!-- Copiar a USB (solo para respaldos locales) -->
+                                            <!-- Copiar a USB (solo para respaldos locales)
                                             {% if respaldo.almacenamiento == 'local' %}
                                             <button type="button" 
                                                     class="btn btn-outline-warning copiar-usb-btn" 
@@ -564,7 +564,8 @@
                                                 <i class="fas fa-copy"></i>
                                             </button>
                                             {% endif %}
-                                            
+                                             -->
+
                                             <!-- Restaurar -->
                                             <button type="button" 
                                                     class="btn btn-outline-info restaurar-respaldo-btn" 
@@ -1935,7 +1936,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event delegation para botones de acción
     document.addEventListener('click', function(e) {
+        console.log("¡CLIC DETECTADO EN EL DOCUMENTO!", e.target); // <--- AGREGAR ESTO
+
         const target = e.target.closest('button');
+        console.log("BOTÓN ENCONTRADO:", target); // <--- AGREGAR ESTO
+
         if (!target) return;
         
         // Copiar a USB (individual)
@@ -1967,18 +1972,88 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Eliminar (placeholder)
+        // Eliminar (AJAX / Fetch)
         if (target.classList.contains('eliminar-respaldo-btn')) {
             e.preventDefault();
             const respaldoId = target.getAttribute('data-id');
+            
+            // Intentar obtener el nombre del respaldo para que la alerta sea más descriptiva
+            const fila = target.closest('.backup-row');
+            const nombre = fila ? fila.getAttribute('data-name') : 'este respaldo';
+            
             Swal.fire({
-                title: 'Eliminación',
-                text: 'Funcionalidad en desarrollo',
-                icon: 'info'
+                title: '¿Estás completamente seguro?',
+                html: `Vas a eliminar <strong>${escapeHtml(nombre)}</strong>.<br>Esta acción borrará el archivo físico del disco y no se puede deshacer.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545', // Rojo peligro
+                cancelButtonColor: '#6c757d', // Gris secundario
+                confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    
+                    // Mostrar indicador de carga
+                    Swal.fire({
+                        title: 'Eliminando...',
+                        html: 'Borrando archivo y actualizando base de datos...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Ejecutar la petición Fetch
+                    fetch(`/respaldos/eliminar/${respaldoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(async response => {
+                        // Consumimos el stream una sola vez de forma segura
+                        const textResponse = await response.text();
+                        let data;
+                        
+                        try {
+                            data = JSON.parse(textResponse);
+                        } catch (parseError) {
+                            console.error('Respuesta no JSON:', textResponse.substring(0, 200));
+                            throw new Error(`Error del servidor (${response.status})`);
+                        }
+                        
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || `Error ${response.status}`);
+                        }
+                        
+                        return data;
+                    })
+                    .then(data => {
+                        // Éxito: Mostrar alerta y recargar para actualizar contadores
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Eliminado!',
+                            text: data.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        // Error: Mostrar alerta al usuario
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al eliminar',
+                            text: error.message
+                        });
+                    });
+                }
             });
         }
     });
-    
+
     // Aplicar filtros iniciales
     aplicarFiltros();
     
@@ -1987,7 +2062,6 @@ document.addEventListener('DOMContentLoaded', function() {
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-
 
     // ========== MONITOREO USB EN SEGUNDO PLANO (POLLING) ==========
     setInterval(() => {

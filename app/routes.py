@@ -1144,31 +1144,51 @@ def restaurar_respaldo(id):
             'fecha_acceso': datetime.utcnow()
         })
         
-        flash('✅ Base de datos restaurada exitosamente', 'success')
+        flash('Base de datos restaurada exitosamente', 'success')
     except Exception as e:
-        flash(f'❌ Error al restaurar: {str(e)}', 'danger')
+        flash(f'Error al restaurar: {str(e)}', 'danger')
         
     return redirect(url_for('backup.listar_respaldos'))
+
 
 @backup_bp.route('/eliminar/<id>', methods=['POST'])
 @login_required
 def eliminar_respaldo(id):
-    if current_user.rol != 'admin': return redirect(url_for('backup.listar_respaldos'))
+    # 1. Seguridad: Verificar permisos y devolver JSON de error
+    if current_user.rol != 'admin': 
+        return jsonify({'success': False, 'message': 'No autorizado para eliminar'}), 403
     
     db = get_db()
-    respaldo = db.backups.find_one({'_id': ObjectId(id)})
     
     try:
-        if respaldo and os.path.exists(respaldo['ruta_archivo']):
-            os.remove(respaldo['ruta_archivo'])
-        
-        db.backups.delete_one({'_id': ObjectId(id)})
-        flash('✅ Respaldo eliminado exitosamente', 'success')
-    except Exception as e:
-        flash(f'❌ Error al eliminar: {str(e)}', 'danger')
-        
-    return redirect(url_for('backup.listar_respaldos'))
+        # Validar que el ID sea un ObjectId válido para evitar colapsos
+        obj_id = ObjectId(id)
+    except Exception:
+        return jsonify({'success': False, 'message': 'ID de respaldo inválido'}), 400
 
+    # 2. Buscar el documento
+    respaldo = db.backups.find_one({'_id': obj_id})
+    if not respaldo:
+        return jsonify({'success': False, 'message': 'El respaldo no existe en la base de datos'}), 404
+    
+    try:
+        # 3. Eliminar el archivo físico (si existe)
+        ruta_archivo = respaldo.get('ruta_archivo')
+        if ruta_archivo and os.path.exists(ruta_archivo):
+            os.remove(ruta_archivo)
+        
+        # 4. Eliminar el documento de MongoDB
+        db.backups.delete_one({'_id': obj_id})
+        
+        # 5. Respuesta exitosa
+        return jsonify({
+            'success': True,
+            'message': 'Respaldo eliminado permanentemente'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error al eliminar respaldo {id}: {e}")
+        return jsonify({'success': False, 'message': f'Error interno del servidor: {str(e)}'}), 500
 
 @backup_bp.route('/importar', methods=['POST'])
 @login_required
@@ -1571,7 +1591,91 @@ def toggle_programacion(id):
         return jsonify({'success': True, 'activo': nuevo_estado})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+ 
+ 
+# ========== 1. CREAR PROGRAMACIÓN (Navegación) ==========
+@backup_bp.route('/programaciones/crear', methods=['GET', 'POST'])
+@login_required
+def crear_programacion():
+    if current_user.rol != 'admin': 
+        flash('No autorizado para crear programaciones', 'danger')
+        return redirect(url_for('backup.listar_programaciones'))
     
+    # Si es POST (Se envió el formulario HTML)
+    if request.method == 'POST':
+        try:
+            db = get_db()
+            
+            nueva_programacion = {
+                'tipo_respaldo': request.form.get('tipo_respaldo'),
+                'frecuencia': request.form.get('frecuencia'),  # ej: 'diario', 'semanal'
+                'hora_ejecucion': request.form.get('hora_ejecucion', '00:00'),
+                'almacenamiento': request.form.get('almacenamiento', 'local'),
+                'activo': True,
+                'creado_por': current_user.nombre,
+                'fecha_creacion': datetime.utcnow(),
+                # Aquí puedes agregar tu lógica real para calcular la próxima ejecución
+                'proxima_ejecucion': datetime.utcnow() 
+            }
+            
+            db.schedules.insert_one(nueva_programacion)
+            flash('Programación creada exitosamente', 'success')
+            return redirect(url_for('backup.listar_programaciones'))
+            
+        except Exception as e:
+            flash(f'Error al guardar: {str(e)}', 'danger')
+            # Si hay error, recarga la misma vista
+            return redirect(url_for('backup.crear_programacion'))
+            
+    # Si es GET (Se hizo clic en el enlace "Programar")
+    return render_template('backups/crear_programacion.html')
+
+
+
+# ========== 2. EDITAR PROGRAMACIÓN (Navegación) ==========
+@backup_bp.route('/programaciones/editar/<id>', methods=['GET', 'POST'])
+@login_required
+def editar_programacion(id):
+    if current_user.rol != 'admin':
+        flash('No autorizado para editar programaciones', 'danger')
+        return redirect(url_for('backup.listar_programaciones'))
+        
+    db = get_db()
+    # Buscamos el documento actual usando ObjectId
+    prog_actual = db.schedules.find_one({'_id': ObjectId(id)})
+    
+    if not prog_actual:
+        flash('La programación no existe', 'danger')
+        return redirect(url_for('backup.listar_programaciones'))
+
+    # Si es POST (Se enviaron los cambios del formulario HTML)
+    if request.method == 'POST':
+        try:
+            update_data = {
+                'tipo_respaldo': request.form.get('tipo_respaldo'),
+                'frecuencia': request.form.get('frecuencia'),
+                'hora_ejecucion': request.form.get('hora_ejecucion'),
+                'almacenamiento': request.form.get('almacenamiento')
+            }
+            
+            # Actualizar en MongoDB (solo los campos enviados)
+            db.schedules.update_one(
+                {'_id': ObjectId(id)}, 
+                {'$set': update_data}
+            )
+            
+            flash('Programación actualizada exitosamente', 'success')
+            return redirect(url_for('backup.listar_programaciones'))
+            
+        except Exception as e:
+            flash(f'Error al actualizar: {str(e)}', 'danger')
+            return redirect(url_for('backup.editar_programacion', id=id))
+
+    # Si es GET (Se hizo clic en el enlace "Editar")
+    # Pasamos el objeto 'prog_actual' al template para precargar los campos del formulario
+    return render_template('backups/editar_programacion.html', prog=prog_actual)    
+
+
 # ========== RUTAS DE PRUEBA/DEBUG (RESTAURADAS) ==========
 @main_bp.route('/debug/session')
 @login_required
