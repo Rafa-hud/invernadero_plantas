@@ -212,7 +212,9 @@
                                         data-bs-toggle="modal" data-bs-target="#importModal">
                                     <i class="fas fa-file-import me-2"></i> Importar Respaldo
                                 </button>
-                                
+                                <button type="button" class="btn btn-danger" onclick="limpiarBaseDatos()">
+                                     <i class="fas fa-radiation-alt"></i> Limpiar Base de Datos
+                                </button>
                                 <!-- Respaldos automáticos -->
                                 <a href="{{ url_for('backup.listar_programaciones') }}" class="btn btn-outline-info flex-fill">
                                     <i class="fas fa-clock me-2"></i> Programar
@@ -1962,13 +1964,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Restaurar (placeholder)
+        // Restaurar (AJAX / Fetch)
         if (target.classList.contains('restaurar-respaldo-btn')) {
             e.preventDefault();
             const respaldoId = target.getAttribute('data-id');
+            
             Swal.fire({
-                title: 'Restauración',
-                text: 'Funcionalidad en desarrollo para respaldo ' + respaldoId,
-                icon: 'info'
+                title: '¿Restaurar este respaldo?',
+                text: "Los datos actuales de la base de datos serán reemplazados por los de este archivo. ¿Continuar?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-undo"></i> Sí, restaurar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Restaurando...',
+                        html: 'Inyectando datos en MongoDB. Por favor espera...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch(`/respaldos/restaurar/${respaldoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(async response => {
+                        const text = await response.text();
+                        try { return JSON.parse(text); } 
+                        catch (e) { throw new Error('Error del servidor'); }
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('¡Restaurado!', data.message, 'success').then(() => location.reload());
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', error.message, 'error');
+                    });
+                }
             });
         }
         
@@ -2110,5 +2151,58 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 10000); // 10000 milisegundos = Revisa cada 10 segundos
 
 });
+
+
+// Función para Limpiar la Base de Datos
+function limpiarBaseDatos() {
+    Swal.fire({
+        title: '⚠️ ADVERTENCIA CRÍTICA',
+        html: 'Se eliminarán los registros operativos.<br>Escribe <strong>LIMPIAR</strong> para confirmar:',
+        icon: 'warning',
+        input: 'text',
+        inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-skull-crossbones"></i> Ejecutar Limpieza',
+        cancelButtonText: 'Cancelar',
+        preConfirm: (inputValue) => {
+            if (inputValue !== 'LIMPIAR') {
+                Swal.showValidationMessage('Debes escribir LIMPIAR exactamente.');
+                return false;
+            }
+            return true;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Limpiando...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch('/respaldos/limpiar-db', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(async response => {
+                const text = await response.text();
+                try { return JSON.parse(text); } catch (e) { throw new Error('Error del servidor'); }
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('¡Listo!', data.message, 'success').then(() => location.reload());
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => Swal.fire('Error', error.message, 'error'));
+        }
+    });
+}
+
 </script>
 {% endblock %}

@@ -1364,41 +1364,37 @@ def crear_respaldo_completo():
 @login_required
 def restaurar_respaldo(id):
     if current_user.rol != 'admin':
-        flash('Solo administradores pueden restaurar', 'danger')
-        return redirect(url_for('backup.listar_respaldos'))
+        return jsonify({'success': False, 'message': 'No autorizado'}), 403
     
     db = get_db()
     respaldo = db.backups.find_one({'_id': ObjectId(id)})
     
     if not respaldo or not os.path.exists(respaldo['ruta_archivo']):
-        flash('❌ El archivo no existe', 'danger')
-        return redirect(url_for('backup.listar_respaldos'))
+        return jsonify({'success': False, 'message': 'El archivo físico no existe'}), 404
     
     try:
-        # 1. DESCOMPRESIÓN Y LECTURA
+        # 1. Leer el archivo comprimido
         with gzip.open(respaldo['ruta_archivo'], 'rt', encoding='utf-8') as f_in:
             backup_data = json_util.loads(f_in.read())
         
-        # 2. RESTAURACIÓN EN MONGODB (Reemplaza a mysql import)
+        # 2. Restaurar cada colección
         for coll_name, documentos in backup_data.items():
             if documentos:
-                # Opcional: Limpiar la colección actual antes de restaurar
+                # Vaciamos la colección actual y metemos los datos del respaldo
                 db[coll_name].delete_many({}) 
-                # Insertar los documentos respaldados
                 db[coll_name].insert_many(documentos)
         
-        # Registrar en el historial
+        # 3. Registrar acción
         db.access_logs.insert_one({
             'usuario_id': ObjectId(current_user.id),
             'accion': f'restaurar_respaldo_{id}',
             'fecha_acceso': datetime.utcnow()
         })
         
-        flash('Base de datos restaurada exitosamente', 'success')
-    except Exception as e:
-        flash(f'Error al restaurar: {str(e)}', 'danger')
+        return jsonify({'success': True, 'message': 'Base de datos restaurada exitosamente'})
         
-    return redirect(url_for('backup.listar_respaldos'))
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al restaurar: {str(e)}'}), 500
 
 
 @backup_bp.route('/eliminar/<id>', methods=['POST'])
@@ -1500,6 +1496,36 @@ def importar_respaldo():
         flash('Formato no válido. El sistema de MongoDB solo acepta archivos .json.gz', 'warning')
         
     return redirect(url_for('backup.listar_respaldos'))
+
+
+@backup_bp.route('/limpiar-db', methods=['POST'])
+@login_required
+def limpiar_base_datos():
+    if current_user.rol != 'admin':
+        return jsonify({'success': False, 'message': 'Acceso denegado.'}), 403
+
+    try:
+        db = get_db()
+        # Protegemos la sesión actual y los respaldos
+        colecciones_protegidas = ['users', 'backups', 'system.indexes']
+        todas_las_colecciones = db.list_collection_names()
+        
+        for coll_name in todas_las_colecciones:
+            if coll_name not in colecciones_protegidas:
+                # Borra todos los documentos, pero mantiene la estructura
+                db[coll_name].delete_many({})
+                
+        # Registramos la limpieza
+        db.access_logs.insert_one({
+            'usuario_id': ObjectId(current_user.id),
+            'accion': 'limpieza_total_db',
+            'fecha_acceso': datetime.utcnow()
+        })
+        
+        return jsonify({'success': True, 'message': 'Base de datos limpiada exitosamente.'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 
 @backup_bp.route('/descargar/<id>', methods=['GET'])
