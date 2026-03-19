@@ -549,7 +549,7 @@
                                             </button>
                                             {% endif %}
                                             
-                                            <!-- Copiar a USB (solo para respaldos locales) -->
+                                            <!-- Copiar a USB (solo para respaldos locales)
                                             {% if respaldo.almacenamiento == 'local' %}
                                             <button type="button" 
                                                     class="btn btn-outline-warning copiar-usb-btn" 
@@ -564,7 +564,8 @@
                                                 <i class="fas fa-copy"></i>
                                             </button>
                                             {% endif %}
-                                            
+                                             -->
+
                                             <!-- Restaurar -->
                                             <button type="button" 
                                                     class="btn btn-outline-info restaurar-respaldo-btn" 
@@ -1192,30 +1193,26 @@ function ejecutarCopiaUSB(datos) {
     })
     .then(async response => {
         console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
+
+        // 1. Consumimos el stream UNA SOLA VEZ como texto
+        const textResponse = await response.text(); 
+        let data;
         
-        // Primero intentar como JSON
+        // 2. Intentamos convertir ese texto a JSON en memoria (ya no tocamos el stream)
         try {
-            const data = await response.json();
-            console.log('Response JSON:', data);
-            
-            if (!response.ok) {
-                throw new Error(data.message || data.error || `Error ${response.status}`);
-            }
-            
-            return data;
-        } catch (jsonError) {
-            // Si falla el JSON, obtener como texto
-            const text = await response.text();
-            console.log('Response text (first 500 chars):', text.substring(0, 500));
-            
-            // Verificar si es HTML (posible error 404/500)
-            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<!doctype')) {
-                throw new Error('El servidor devolvió una página HTML. Verifica la ruta /respaldos/copiar-a-usb.');
-            }
-            
-            throw new Error(`Respuesta inválida: ${text.substring(0, 100)}...`);
+            data = JSON.parse(textResponse);
+        } catch (parseError) {
+            // Si no es JSON (ej. un HTML de error 500 del servidor), lo manejamos aquí
+            console.error('El servidor no devolvió JSON. Respuesta cruda:', textResponse.substring(0, 200));
+            throw new Error(`Error del servidor (${response.status}): Respuesta inválida`);
         }
+        
+        // 3. Evaluamos la lógica de nuestra API
+        if (!response.ok || data.success === false) {
+            throw new Error(data.message || data.error || `Error ${response.status}`);
+        }
+
+        return data;
     })
     .then(data => {
         if (data.success) {
@@ -1811,7 +1808,7 @@ function copiarRespaldoIndividual(respaldoId, buttonElement) {
             buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             buttonElement.disabled = true;
             
-            ejecutarCopiaUSB({ respaldo_id: respaldoId })
+            ejecutarCopiaUSB({ id: respaldoId })
                 .finally(() => {
                     buttonElement.innerHTML = originalHTML;
                     buttonElement.disabled = false;
@@ -1919,7 +1916,7 @@ function seleccionarRespaldoEspecificoUSB() {
                 cancelButtonText: 'Cancelar'
             }).then((confirmResult) => {
                 if (confirmResult.isConfirmed) {
-                    ejecutarCopiaUSB({ respaldo_id: result.value });
+                    ejecutarCopiaUSB({ id: result.value });
                 }
             });
         }
@@ -1939,7 +1936,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event delegation para botones de acción
     document.addEventListener('click', function(e) {
+        console.log("¡CLIC DETECTADO EN EL DOCUMENTO!", e.target); // <--- AGREGAR ESTO
+
         const target = e.target.closest('button');
+        console.log("BOTÓN ENCONTRADO:", target); // <--- AGREGAR ESTO
+
         if (!target) return;
         
         // Copiar a USB (individual)
@@ -1971,18 +1972,88 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Eliminar (placeholder)
+        // Eliminar (AJAX / Fetch)
         if (target.classList.contains('eliminar-respaldo-btn')) {
             e.preventDefault();
             const respaldoId = target.getAttribute('data-id');
+            
+            // Intentar obtener el nombre del respaldo para que la alerta sea más descriptiva
+            const fila = target.closest('.backup-row');
+            const nombre = fila ? fila.getAttribute('data-name') : 'este respaldo';
+            
             Swal.fire({
-                title: 'Eliminación',
-                text: 'Funcionalidad en desarrollo',
-                icon: 'info'
+                title: '¿Estás completamente seguro?',
+                html: `Vas a eliminar <strong>${escapeHtml(nombre)}</strong>.<br>Esta acción borrará el archivo físico del disco y no se puede deshacer.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545', // Rojo peligro
+                cancelButtonColor: '#6c757d', // Gris secundario
+                confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    
+                    // Mostrar indicador de carga
+                    Swal.fire({
+                        title: 'Eliminando...',
+                        html: 'Borrando archivo y actualizando base de datos...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Ejecutar la petición Fetch
+                    fetch(`/respaldos/eliminar/${respaldoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(async response => {
+                        // Consumimos el stream una sola vez de forma segura
+                        const textResponse = await response.text();
+                        let data;
+                        
+                        try {
+                            data = JSON.parse(textResponse);
+                        } catch (parseError) {
+                            console.error('Respuesta no JSON:', textResponse.substring(0, 200));
+                            throw new Error(`Error del servidor (${response.status})`);
+                        }
+                        
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || `Error ${response.status}`);
+                        }
+                        
+                        return data;
+                    })
+                    .then(data => {
+                        // Éxito: Mostrar alerta y recargar para actualizar contadores
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Eliminado!',
+                            text: data.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        // Error: Mostrar alerta al usuario
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al eliminar',
+                            text: error.message
+                        });
+                    });
+                }
             });
         }
     });
-    
+
     // Aplicar filtros iniciales
     aplicarFiltros();
     
@@ -1991,6 +2062,53 @@ document.addEventListener('DOMContentLoaded', function() {
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    // ========== MONITOREO USB EN SEGUNDO PLANO (POLLING) ==========
+    setInterval(() => {
+        // Consultamos silenciosamente la ruta que arreglamos en el Paso 1
+        fetch('/respaldos/detectar-usb')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.conectado !== undefined) {
+                    const toggle = document.getElementById('usbToggle');
+                    const estadoAnterior = usarUSB;
+
+                    // Escenario A: Estaba conectada y la desconectaron
+                    if (estadoAnterior === true && data.conectado === false) {
+                        usarUSB = false;
+                        if(toggle) toggle.checked = false; // Apagamos el switch visualmente
+                        
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'USB Desconectada',
+                            text: 'Se perdió conexión con la unidad. El almacenamiento cambió a local.',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
+                    // Escenario B: Estaba desconectada y la conectaron (opcional)
+                    else if (estadoAnterior === false && data.conectado === true) {
+                        // Solo avisamos, no forzamos el cambio para que el usuario decida
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'USB Detectada',
+                            text: 'Se ha detectado una nueva unidad USB. Puedes activarla en el panel.',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
+                }
+            })
+            .catch(err => {
+                // Errores silenciosos para no molestar al usuario si hay un micro-corte de red
+                console.debug('Polling USB:', err.message);
+            });
+    }, 10000); // 10000 milisegundos = Revisa cada 10 segundos
+
 });
 </script>
 {% endblock %}

@@ -28,7 +28,7 @@
 
     <!-- Estadísticas -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-primary">
                 <div class="card-body text-center">
                     <div class="h1 text-primary mb-1">{{ programaciones|length }}</div>
@@ -36,7 +36,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-success">
                 <div class="card-body text-center">
                     <div class="h1 text-success mb-1">{{ programaciones|selectattr('activo')|list|length }}</div>
@@ -44,7 +44,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-info">
                 <div class="card-body text-center">
                     {% set completos = programaciones|selectattr('tipo_respaldo', 'equalto', 'completo')|list|length %}
@@ -53,6 +53,7 @@
                 </div>
             </div>
         </div>
+        <!--
         <div class="col-md-3">
             <div class="card border-warning">
                 <div class="card-body text-center">
@@ -62,6 +63,7 @@
                 </div>
             </div>
         </div>
+        -->
     </div>
 
     <!-- Lista de programaciones -->
@@ -98,7 +100,7 @@
                                             <strong>#{{ prog._id }} - {{ prog.tipo_respaldo|title }}</strong>
                                             <br>
                                             <small class="text-muted">
-                                                <i class="far fa-clock"></i> {{ prog.hora_ejecucion.strftime('%H:%M') }}
+                                                <i class="far fa-clock"></i> {{ prog.hora_ejecucion | default('00:00') }}
                                                 <br>
                                                 <i class="far fa-user"></i> {{ prog.usuario_creador }}
                                             </small>
