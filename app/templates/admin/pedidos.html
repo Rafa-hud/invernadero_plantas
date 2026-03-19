@@ -299,7 +299,6 @@ function actualizarEstado(select) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': "{{ csrf_token() }}"
                 },
                 body: JSON.stringify({estado: nuevoEstado})
             })
@@ -507,7 +506,6 @@ function actualizarEstado(pedidoId, nuevoEstado) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
-            'X-CSRFToken': "{{ csrf_token() }}"
             // No agregues nada de CSRF aquí si no tienes configurado Flask-WTF
         },
         body: JSON.stringify({ estado: nuevoEstado })
@@ -577,7 +575,6 @@ function actualizarEstado(selectElement) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
-            'X-CSRFToken': "{{ csrf_token() }}"
         },
         body: JSON.stringify({ estado: nuevoEstado })
     })

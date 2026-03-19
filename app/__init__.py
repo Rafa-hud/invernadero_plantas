@@ -5,12 +5,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from flask_mail import Mail
-from flask_wtf.csrf import CSRFProtect
+#from flask_wtf.csrf import CSRFProtect
 
 # Inicializar extensiones
 login_manager = LoginManager()
 mail = Mail()
-csrf = CSRFProtect()  # <--- Decláralo aquí, SIN la (app)
+#csrf = CSRFProtect()  # <--- Decláralo aquí, SIN la (app)
 
 
 # Inicializar extensiones
@@ -72,7 +72,7 @@ def create_app(config_name='default'):
     # Inicializar extensiones con la aplicación
     login_manager.init_app(app)
     mail.init_app(app)
-    csrf.init_app(app)
+    #csrf.init_app(app)
     
     # Configurar logging
     configure_logging(app)
