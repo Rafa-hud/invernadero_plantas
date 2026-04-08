@@ -14,7 +14,7 @@
 <div class="row">
     <div class="col-md-8">
         {% if plantas_carrito %}
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table align-middle">
@@ -33,21 +33,21 @@
                             <tr id="planta-{{ item.id }}">
                                 <td>
                                     {% if item.imagen_url %}
-                                    <img src="{{ item.imagen_url }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ item.nombre }}">
+                                    <img src="{{ item.imagen_url }}" class="rounded shadow-sm" style="width: 70px; height: 70px; object-fit: cover;" alt="{{ item.nombre }}">
                                     {% else %}
-                                    <div class="img-thumbnail d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                                        <i class="fas fa-leaf text-success"></i>
+                                    <div class="rounded bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 70px; height: 70px;">
+                                        <i class="fas fa-leaf text-success opacity-50"></i>
                                     </div>
                                     {% endif %}
                                 </td>
                                 <td>
                                     <h6 class="mb-1">{{ item.nombre }}</h6>
                                     {% if item.categoria %}
-                                    <small class="text-muted">{{ item.categoria|title }}</small>
+                                    <span class="badge bg-light text-success border">{{ item.categoria|title }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <strong>${{ "%.2f"|format(item.precio_unitario) }}</strong>
+                                    <span class="text-muted">$</span><strong class="precio-unitario">{{ "%.2f"|format(item.precio_unitario) }}</strong>
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex align-items-center justify-content-center">
@@ -57,28 +57,29 @@
                                             <i class="fas fa-minus"></i>
                                         </button>
                                         <input type="number" 
-                                               class="form-control form-control-sm text-center mx-2" 
+                                               class="form-control form-control-sm text-center mx-2 input-cantidad" 
                                                value="{{ item.cantidad }}" 
                                                min="1" 
                                                max="{{ item.stock }}" 
-                                               style="width: 60px;"
-                                               id="cantidad-{{ item.id }}">
+                                               style="width: 50px; border-radius: 8px;"
+                                               id="cantidad-{{ item.id }}"
+                                               readonly>
                                         <button class="btn btn-sm btn-outline-secondary btn-cantidad" 
                                                 data-planta-id="{{ item.id }}" 
                                                 data-action="increase">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
-                                    <small class="text-muted">Stock: {{ item.stock }}</small>
+                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Stock: {{ item.stock }}</small>
                                 </td>
                                 <td class="text-center">
-                                    <strong class="text-success">${{ "%.2f"|format(item.total_item) }}</strong>
+                                    <strong class="text-success total-fila">${{ "%.2f"|format(item.total_item) }}</strong>
                                 </td>
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-danger btn-eliminar" 
+                                    <button class="btn btn-sm btn-link text-danger btn-eliminar" 
                                             data-planta-id="{{ item.id }}"
-                                            title="Eliminar">
-                                        <i class="fas fa-trash"></i>
+                                            data-nombre="{{ item.nombre }}">
+                                        <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -87,97 +88,67 @@
                     </table>
                 </div>
                 
-                <div class="d-flex justify-content-between mt-3">
-                    <button class="btn btn-outline-danger" id="btn-vaciar-carrito">
-                        <i class="fas fa-trash"></i> Vaciar Carrito
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <button class="btn btn-link text-danger text-decoration-none" id="btn-vaciar-carrito">
+                        <i class="fas fa-eraser"></i> Vaciar todo el carrito
                     </button>
-                    <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-success">
-                        <i class="fas fa-arrow-left"></i> Seguir Comprando
+                    <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-outline-success px-4" style="border-radius: 10px;">
+                        <i class="fas fa-plus-circle"></i> Agregar más plantas
                     </a>
                 </div>
             </div>
         </div>
         {% else %}
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm text-center py-5" style="border-radius: 15px;">
             <div class="card-body">
-                <div class="text-center py-5">
-                    <i class="fas fa-shopping-cart fa-5x text-muted mb-3"></i>
-                    <h4>Tu carrito está vacío</h4>
-                    <p class="text-muted mb-4">Agrega algunas plantas para comenzar tu compra</p>
-                    <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-success btn-lg">
-                        <i class="fas fa-store"></i> Ir a la tienda
-                    </a>
-                </div>
+                <i class="fas fa-shopping-basket fa-5x text-light mb-3"></i>
+                <h4 class="text-muted">Tu carrito está vacío</h4>
+                <p class="mb-4">¡Tus espacios necesitan un toque verde!</p>
+                <a href="{{ url_for('tienda.tienda_index') }}" class="btn btn-success btn-lg px-5" style="border-radius: 10px;">
+                    Ver catálogo de plantas
+                </a>
             </div>
         </div>
         {% endif %}
     </div>
     
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title mb-3">
-                    <i class="fas fa-receipt text-success"></i> Resumen del Pedido
-                </h5>
+        <div class="card border-0 shadow-sm sticky-top" style="top: 20px; border-radius: 15px;">
+            <div class="card-body p-4">
+                <h5 class="mb-4">Resumen de compra</h5>
                 
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Subtotal</span>
-                    <span id="subtotal">${{ "%.2f"|format(subtotal) }}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Envío</span>
-                    <span id="envio">${{ "%.2f"|format(envio) }}</span>
-                    {% if envio == 0 %}
-                    <small class="text-success">¡Gratis!</small>
-                    {% endif %}
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Subtotal</span>
+                    <span id="subtotal" class="fw-bold">${{ "%.2f"|format(subtotal) }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-3">
-                    <span>IVA (12%)</span>
-                    <span id="iva">${{ "%.2f"|format(iva) }}</span>
+                    <span class="text-muted">IVA (12%)</span>
+                    <span id="iva" class="fw-bold">${{ "%.2f"|format(iva) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Envío</span>
+                    <span id="envio" class="fw-bold {% if envio == 0 %}text-success{% endif %}">
+                        {{ '$' + "%.2f"|format(envio) if envio > 0 else '¡Gratis!' }}
+                    </span>
                 </div>
                 
-                <hr>
+                <hr class="my-4">
                 
                 <div class="d-flex justify-content-between mb-4">
-                    <h5>Total</h5>
-                    <h5 id="total">${{ "%.2f"|format(total) }}</h5>
+                    <span class="h5">Total</span>
+                    <span id="total" class="h5 text-success fw-bold">${{ "%.2f"|format(total) }}</span>
                 </div>
                 
-                {% if plantas_carrito %}
-                <a href="{{ url_for('tienda.checkout') }}" class="btn btn-success btn-lg w-100 mb-3">
-                    <i class="fas fa-lock"></i> Proceder al Pago
+                <a href="{{ url_for('tienda.checkout') }}" 
+                   class="btn btn-success btn-lg w-100 py-3 {% if not plantas_carrito %}disabled{% endif %}"
+                   style="border-radius: 12px; font-weight: bold;">
+                    Continuar al pago <i class="fas fa-chevron-right ms-2"></i>
                 </a>
-                {% else %}
-                <button class="btn btn-success btn-lg w-100 mb-3" disabled>
-                    <i class="fas fa-lock"></i> Proceder al Pago
-                </button>
-                {% endif %}
                 
-                <div class="alert alert-light border">
-                    <small>
-                        <i class="fas fa-truck text-success"></i> 
-                        <strong>Envío gratis</strong> en compras mayores a $50
-                    </small>
+                <div class="mt-4 p-3 bg-light rounded" style="font-size: 0.85rem;">
+                    <p class="mb-1 text-success"><i class="fas fa-check-circle"></i> Compra segura</p>
+                    <p class="mb-0 text-muted"><i class="fas fa-truck"></i> Envío gratis en pedidos sobre $50.00</p>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de confirmación -->
-<div class="modal fade" id="confirmModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmar acción</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="modal-body">
-                <!-- El mensaje se cargará aquí -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirm-action">Confirmar</button>
             </div>
         </div>
     </div>
@@ -187,192 +158,128 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Función para actualizar el resumen
-    function actualizarResumen() {
-        let subtotal = 0;
+    // Función para actualizar los totales en la vista sin recargar
+    function actualizarTotalesInterfaz(data) {
+        $('#subtotal').text('$' + data.subtotal.toFixed(2));
+        $('#iva').text('$' + data.iva.toFixed(2));
+        $('#total').text('$' + data.total.toFixed(2));
         
-        // Calcular nuevo subtotal
-        $('tbody tr[id^="planta-"]').each(function() {
-            const plantaId = $(this).attr('id').replace('planta-', '');
-            const cantidad = parseInt($('#cantidad-' + plantaId).val());
-            const precio = parseFloat($(this).find('td:nth-child(3) strong').text().replace('$', ''));
-            const total = cantidad * precio;
-            
-            // Actualizar total de la fila
-            $(this).find('td:nth-child(5) strong').text('$' + total.toFixed(2));
-            
-            subtotal += total;
-        });
-        
-        // Calcular envío
-        const envio = subtotal >= 50 ? 0 : 5.99;
-        const iva = subtotal * 0.12;
-        const total = subtotal + envio + iva;
-        
-        // Actualizar valores en el resumen
-        $('#subtotal').text('$' + subtotal.toFixed(2));
-        $('#envio').text('$' + envio.toFixed(2));
-        $('#iva').text('$' + iva.toFixed(2));
-        $('#total').text('$' + total.toFixed(2));
-    }
-    
-    // Actualizar cantidad
-    $('.btn-cantidad').click(function() {
-        const plantaId = $(this).data('planta-id');
-        const action = $(this).data('action');
-        const input = $('#cantidad-' + plantaId);
-        let cantidad = parseInt(input.val());
-        const maxStock = parseInt(input.attr('max'));
-        
-        if (action === 'increase' && cantidad < maxStock) {
-            cantidad++;
-        } else if (action === 'decrease' && cantidad > 1) {
-            cantidad--;
+        const envioElement = $('#envio');
+        if (data.envio === 0) {
+            envioElement.text('¡Gratis!').addClass('text-success');
         } else {
-            return;
+            envioElement.text('$' + data.envio.toFixed(2)).removeClass('text-success');
         }
-        
-        input.val(cantidad);
-        
-        // Enviar actualización al servidor
+
+        // Actualizar contador global si existe
+        const contadorNavbar = $('#carrito-contador');
+        if (contadorNavbar.length) {
+            contadorNavbar.text(data.carrito_count).toggle(data.carrito_count > 0);
+        }
+    }
+
+    // Cambiar cantidad (Mas / Menos)
+    $('.btn-cantidad').click(function() {
+        const btn = $(this);
+        const plantaId = btn.data('planta-id');
+        const action = btn.data('action');
+        const input = $('#cantidad-' + plantaId);
+        let nuevaCantidad = parseInt(input.val());
+
+        if (action === 'increase') nuevaCantidad++;
+        else if (action === 'decrease' && nuevaCantidad > 1) nuevaCantidad--;
+        else return;
+
+        // Llamada AJAX al servidor
         $.ajax({
-            url: '/tienda/carrito/actualizar/' + plantaId,
+            url: `/tienda/carrito/actualizar/${plantaId}`,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ cantidad: cantidad }),
-            success: function(response) {
-                if (response.success) {
-                    actualizarResumen();
-                    // Actualizar contador en el navbar si existe
-                    const badge = $('.carrito-flotante .badge');
-                    if (badge.length) {
-                        badge.text(response.carrito_count);
-                    }
+            data: JSON.stringify({ cantidad: nuevaCantidad }),
+            success: function(res) {
+                if (res.success) {
+                    input.val(nuevaCantidad);
+                    // Actualizar el total de la fila específica
+                    const precioUnitario = parseFloat(btn.closest('tr').find('.precio-unitario').text());
+                    btn.closest('tr').find('.total-fila').text('$' + (precioUnitario * nuevaCantidad).toFixed(2));
+                    
+                    // Actualizar el resumen lateral
+                    actualizarTotalesInterfaz(res);
                 } else {
-                    Swal.fire('Error', response.message, 'error');
+                    Swal.fire('Error', res.message, 'warning');
                 }
-            },
-            error: function() {
-                Swal.fire('Error', 'No se pudo actualizar la cantidad', 'error');
             }
         });
     });
-    
-    // Cambio manual en el input
-    $('input[id^="cantidad-"]').change(function() {
-        const plantaId = $(this).attr('id').replace('cantidad-', '');
-        const cantidad = parseInt($(this).val());
-        const maxStock = parseInt($(this).attr('max'));
-        
-        if (cantidad < 1 || cantidad > maxStock) {
-            Swal.fire('Error', `La cantidad debe estar entre 1 y ${maxStock}`, 'error');
-            $(this).val($(this).data('old-value') || 1);
-            return;
-        }
-        
-        // Enviar actualización al servidor
-        $.ajax({
-            url: '/tienda/carrito/actualizar/' + plantaId,
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ cantidad: cantidad }),
-            success: function(response) {
-                if (response.success) {
-                    actualizarResumen();
-                    // Actualizar contador en el navbar si existe
-                    const badge = $('.carrito-flotante .badge');
-                    if (badge.length) {
-                        badge.text(response.carrito_count);
-                    }
-                } else {
-                    Swal.fire('Error', response.message, 'error');
-                }
-            },
-            error: function() {
-                Swal.fire('Error', 'No se pudo actualizar la cantidad', 'error');
-            }
-        });
-    }).focus(function() {
-        $(this).data('old-value', $(this).val());
-    });
-    
-    // Eliminar producto del carrito
+
+    // Eliminar un producto
     $('.btn-eliminar').click(function() {
         const plantaId = $(this).data('planta-id');
-        const plantaNombre = $(this).closest('tr').find('h6').text().trim();
-        
-        $('#modal-body').html(`¿Estás seguro de eliminar <strong>${plantaNombre}</strong> del carrito?`);
-        $('#confirm-action')
-            .off('click')
-            .on('click', function() {
+        const nombre = $(this).data('nombre');
+
+        Swal.fire({
+            title: '¿Quitar del carrito?',
+            text: `Se eliminará "${nombre}" de tu lista.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
                 $.ajax({
-                    url: '/tienda/carrito/eliminar/' + plantaId,
+                    url: `/tienda/carrito/eliminar/${plantaId}`,
                     method: 'POST',
-                    success: function(response) {
-                        if (response.success) {
-                            $('#planta-' + plantaId).remove();
-                            actualizarResumen();
-                            
-                            // Actualizar contador
-                            const badge = $('.carrito-flotante .badge');
-                            if (badge.length) {
-                                badge.text(response.carrito_count);
+                    success: function(res) {
+                        if (res.success) {
+                            if (res.carrito_count === 0) {
+                                location.reload(); // Mostrar pantalla de carrito vacío
+                            } else {
+                                $(`#planta-${plantaId}`).fadeOut(300, function() {
+                                    $(this).remove();
+                                    actualizarTotalesInterfaz(res);
+                                });
                             }
-                            
-                            // Si no quedan productos, recargar página
-                            if (response.carrito_count === 0) {
-                                location.reload();
-                            }
-                            
-                            Swal.fire('Eliminado', response.message, 'success');
-                        } else {
-                            Swal.fire('Error', response.message, 'error');
                         }
-                        $('#confirmModal').modal('hide');
-                    },
-                    error: function() {
-                        Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
-                        $('#confirmModal').modal('hide');
                     }
                 });
-            });
-        
-        $('#confirmModal').modal('show');
+            }
+        });
     });
-    
-    // Vaciar carrito
+
+    // Vaciar carrito completo
     $('#btn-vaciar-carrito').click(function() {
-        $('#modal-body').html('¿Estás seguro de vaciar todo el carrito?');
-        $('#confirm-action')
-            .off('click')
-            .on('click', function() {
+        Swal.fire({
+            title: '¿Vaciar carrito?',
+            text: "Se eliminarán todas las plantas de tu compra.",
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Vaciar todo',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
                 $.ajax({
                     url: '/tienda/carrito/vaciar',
                     method: 'POST',
-                    success: function(response) {
-                        if (response.success) {
-                            location.reload();
-                        } else {
-                            Swal.fire('Error', response.message, 'error');
-                        }
-                        $('#confirmModal').modal('hide');
-                    },
-                    error: function() {
-                        Swal.fire('Error', 'No se pudo vaciar el carrito', 'error');
-                        $('#confirmModal').modal('hide');
+                    success: function(res) {
+                        if (res.success) location.reload();
                     }
                 });
-            });
-        
-        $('#confirmModal').modal('show');
+            }
+        });
     });
-    
-    // Inicializar SweetAlert si no está cargado
-    if (typeof Swal === 'undefined') {
-        const swalScript = document.createElement('script');
-        swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
-        document.head.appendChild(swalScript);
-    }
 });
 </script>
+
+<style>
+    .input-cantidad::-webkit-inner-spin-button, 
+    .input-cantidad::-webkit-outer-spin-button { 
+        -webkit-appearance: none; margin: 0; 
+    }
+    .btn-cantidad { width: 32px; height: 32px; padding: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .table th { border: none; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-eliminar:hover { color: #dc3545 !important; transform: scale(1.1); transition: 0.2s; }
+</style>
 {% endblock %}

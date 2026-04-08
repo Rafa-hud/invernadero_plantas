@@ -191,10 +191,10 @@
                 Todas
             </a>
             {% for categoria in categorias %}
-            <a href="{{ url_for('tienda.plantas_por_categoria', categoria=categoria) }}" 
+            <a href="{{ url_for('tienda.buscar_plantas', categoria=categoria) }}" 
                class="btn btn-outline-success">
                 {{ categoria|title }}
-            </a>
+            </>
             {% endfor %}
         </div>
     </div>
@@ -371,7 +371,7 @@ $(document).ready(function() {
         boton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Procesando...');
         
         // Hacer la petición AJAX al backend
-        fetch('{{ url_for("tienda.agregar_al_carrito", planta_id=0) }}'.replace('0', plantaId), {
+        fetch('{{ url_for("tienda.agregar_al_carrito", id=0) }}'.replace('0', plantaId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

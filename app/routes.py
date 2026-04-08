@@ -20,6 +20,9 @@ from app.database import get_db
 from app.models import RegistroRiegoModel
 import shutil
 
+tienda_bp = Blueprint('tienda', __name__)
+main_bp = Blueprint('main', __name__)
+
 
 # Si estás en Windows, importar windll para la detección de USB
 if platform.system() == 'Windows':
@@ -647,21 +650,45 @@ def actualizar_tienda(id):
     return redirect(url_for('plants.listar_plantas'))
 
 # ========== TIENDA ONLINE (CLIENTES) ==========
+
 @tienda_bp.route('/')
 @login_required
 def tienda_index():
-    if current_user.rol != 'cliente': return redirect(url_for('main.dashboard'))
+    if current_user.rol != 'cliente': 
+        return redirect(url_for('main.dashboard'))
     
-    # MONGODB: Creamos un método para traer las disponibles (stock > 0, disponible_venta = True)
-    plantas_disponibles = PlantaModel.get_disponibles()
+    # Obtenemos el orden desde la URL (tu dropdown lo usa)
+    orden = request.args.get('orden', 'nombre')
+    
+    # Traemos las plantas y categorías
+    plantas_raw = PlantaModel.get_disponibles() # Debería devolver objetos o dicts
     categorias = PlantaModel.get_categorias_disponibles()
+
+    # Lógica de ordenamiento simple para el dropdown
+    if orden == 'precio_asc':
+        plantas_raw.sort(key=lambda x: float(x.get('precio', 0)))
+    elif orden == 'precio_desc':
+        plantas_raw.sort(key=lambda x: float(x.get('precio', 0)), reverse=True)
+    else:
+        plantas_raw.sort(key=lambda x: x.get('nombre', '').lower())
+
+    # Formateamos para el template (asegurando que tengan 'id' como string)
+    plantas = []
+    for p in plantas_raw:
+        p_dict = dict(p)
+        p_dict['id'] = str(p['_id'])
+        # Si no hay imagen_url, el template usará el icono de hoja por defecto
+        plantas.append(p_dict)
     
-    return render_template('tienda/index.html', plantas=plantas_disponibles, categorias=categorias)
+    return render_template('tienda/index.html', plantas=plantas, categorias=categorias)
 
 @tienda_bp.route('/planta/<id>')
 @login_required
 def ver_planta_tienda(id):
     planta = PlantaModel.get_by_id(id)
+    if not planta:
+        flash('Planta no encontrada', 'warning')
+        return redirect(url_for('tienda.tienda_index'))
     plantas_relacionadas = PlantaModel.get_by_categoria(planta.get('categoria'), exclude_id=id, limit=4)
     return render_template('tienda/detalle_planta.html', planta=planta, plantas_relacionadas=plantas_relacionadas)
 
@@ -673,27 +700,60 @@ def buscar_plantas():
     precio_max = request.args.get('precio_max', type=float)
     categoria = request.args.get('categoria', '')
     
-    # MONGODB: Idealmente usarías un método de búsqueda avanzado en PlantaModel
-    # que utilice expresiones regulares ($regex) para buscar en texto.
     plantas = PlantaModel.buscar_avanzada(query, precio_min, precio_max, categoria)
     categorias = PlantaModel.get_categorias_disponibles()
     
     return render_template('tienda/buscar.html', plantas=plantas, query=query, 
                          categorias=categorias, categoria_seleccionada=categoria)
 
-
 @tienda_bp.route('/mi-perfil')
 @login_required
 def mi_perfil():
-    # Asegúrate de tener el archivo templates/tienda/perfil.html creado
     return render_template('tienda/perfil.html', usuario=current_user)
 
+# ========== CARRITO DE COMPRAS (Lógica Corregida y Única) ==========
 
-# ========== CARRITO DE COMPRAS ==========
+@tienda_bp.route('/agregar-al-carrito/<id>', methods=['POST'])
+@login_required
+def agregar_al_carrito(id):
+    try:
+        planta = PlantaModel.get_by_id(id)
+        if not planta or planta.get('stock', 0) <= 0:
+            return jsonify({'success': False, 'message': 'Stock agotado'}), 400
+        
+        carrito = session.get('carrito', {})
+        
+        if id in carrito:
+            carrito[id]['cantidad'] += 1
+        else:
+            carrito[id] = {
+                'cantidad': 1,
+                'precio': float(planta['precio']),
+                'nombre': planta['nombre']
+            }
+            
+        session['carrito'] = carrito
+        session.modified = True
+        
+        return jsonify({
+            'success': True,
+            'carrito_count': sum(item['cantidad'] for item in carrito.values())
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@tienda_bp.route('/cantidad-carrito')
+@login_required
+def cantidad_carrito():
+    carrito = session.get('carrito', {})
+    total = sum(item.get('cantidad', 0) for item in carrito.values())
+    return jsonify({'success': True, 'total_items': total})
+
 @tienda_bp.route('/carrito')
 @login_required
 def ver_carrito():
-    carrito = obtener_carrito()
+    # Función para obtener carrito (asumiendo que está en tus utils o definida localmente)
+    carrito = session.get('carrito', {})
     plantas_carrito = []
     subtotal = 0.0
     
@@ -704,8 +764,8 @@ def ver_carrito():
             cantidad = item['cantidad']
             total_item = cantidad * precio_unitario
             
-            planta_dict = dict(planta) # Copia superficial
-            planta_dict['id'] = str(planta['_id']) # Para el template
+            planta_dict = dict(planta)
+            planta_dict['id'] = str(planta['_id'])
             planta_dict['cantidad'] = cantidad
             planta_dict['precio_unitario'] = precio_unitario
             planta_dict['total_item'] = total_item
@@ -721,37 +781,19 @@ def ver_carrito():
                          subtotal=subtotal, envio=envio, iva=iva, total=total, 
                          carrito_vacio=len(plantas_carrito) == 0)
 
-@tienda_bp.route('/carrito/agregar/<id>', methods=['POST'])
-@login_required
-def agregar_al_carrito(id):
-    planta = PlantaModel.get_by_id(id)
-    if not planta or not planta.get('disponible_venta'): return jsonify({'success': False}), 404
-    
-    cantidad = request.json.get('cantidad', 1)
-    carrito = obtener_carrito()
-    
-    if id in carrito:
-        carrito[id]['cantidad'] += cantidad
-    else:
-        carrito[id] = {'cantidad': cantidad, 'precio': str(planta['precio'])}
-        
-    guardar_carrito(carrito)
-    return jsonify({'success': True, 'carrito_count': sum(i['cantidad'] for i in carrito.values())})
+# ========== CHECKOUT Y PEDIDOS ==========
 
-# (Omito por brevedad las rutas de /vaciar, /actualizar y /eliminar del carrito, 
-# la lógica es idéntica a tu código pero usando el `id` como string del diccionario).
-
-# ========== CHECKOUT (EL GRAN CAMBIO) ==========
 @tienda_bp.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    carrito = obtener_carrito()
-    if not carrito: return redirect(url_for('tienda.ver_carrito'))
+    carrito = session.get('carrito', {})
+    if not carrito:
+        return redirect(url_for('tienda.ver_carrito'))
     
     subtotal = 0.0
-    detalles_pedido = []
+    plantas_carrito = [] # Lista para mostrar en el resumen lateral del HTML
     
-    # Pre-calculamos y validamos stock
+    # 1. Validar stock y preparar datos
     for planta_id_str, item in carrito.items():
         planta = PlantaModel.get_by_id(planta_id_str)
         if planta:
@@ -759,59 +801,118 @@ def checkout():
                 flash(f'Stock insuficiente para {planta["nombre"]}', 'danger')
                 return redirect(url_for('tienda.ver_carrito'))
             
-            subtotal += float(planta['precio']) * item['cantidad']
-            # Construimos el array embebido para MongoDB
-            detalles_pedido.append({
-                'id_planta': ObjectId(planta_id_str),
-                'nombre_planta': planta['nombre'], # Desnormalizamos el nombre por practicidad
-                'cantidad': item['cantidad'],
-                'precio_en_compra': float(planta['precio'])
-            })
+            precio = float(planta['precio'])
+            total_item = precio * item['cantidad']
+            subtotal += total_item
             
-    envio = 5.99 if subtotal < 50 else 0
-    total = subtotal + envio + (subtotal * 0.12)
+            # Formato que espera el template checkout.html
+            plantas_carrito.append({
+                'id': planta_id_str,
+                'nombre': planta['nombre'],
+                'cantidad': item['cantidad'],
+                'precio_unitario': precio,
+                'total_item': total_item,
+                'imagen_url': planta.get('imagen_url'),
+                'categoria': planta.get('categoria', 'Planta')
+            })
+
+    # 2. Cálculos financieros (Sección crítica para evitar el error Undefined)
+    iva = subtotal * 0.12
+    envio = 5.99 if subtotal < 50 else 0.0
+    total = subtotal + iva + envio
     
+    # 3. Procesar el formulario de compra
     if request.method == 'POST':
         try:
-            # 1. Crear el documento completo del pedido con sus detalles embebidos
             nuevo_pedido = {
                 'id_cliente': ObjectId(current_user.id),
                 'costo_total': total,
+                'subtotal': subtotal,
+                'iva': iva,
+                'envio': envio,
                 'estado_pedido': 'pendiente',
                 'fecha_orden': datetime.utcnow(),
                 'direccion_envio': request.form.get('direccion_envio'),
                 'telefono_contacto': request.form.get('telefono_contacto'),
                 'metodo_pago': request.form.get('metodo_pago'),
-                'detalles': detalles_pedido # ¡Aquí incrustamos la tabla "pedido_detalle" directamente!
+                'notas_pedido': request.form.get('notas_pedido', ''),
+                'detalles': plantas_carrito # Guardamos el snapshot de la compra
             }
             
-            pedido_id = PedidoModel.create(nuevo_pedido)
+            # Guardar en Base de Datos (MongoDB)
+            PedidoModel.create(nuevo_pedido)
             
-            # 2. Actualizar stock de las plantas
-            for detalle in detalles_pedido:
-                planta_bd = PlantaModel.get_by_id(str(detalle['id_planta']))
-                nuevo_stock = planta_bd['stock'] - detalle['cantidad']
-                disponible = nuevo_stock > 0
-                PlantaModel.update(str(detalle['id_planta']), {'stock': nuevo_stock, 'disponible_venta': disponible})
+            # Actualizar Stock de las plantas
+            for item in plantas_carrito:
+                planta_bd = PlantaModel.get_by_id(item['id'])
+                nuevo_stock = planta_bd['stock'] - item['cantidad']
+                PlantaModel.update(item['id'], {
+                    'stock': nuevo_stock, 
+                    'disponible_venta': nuevo_stock > 0
+                })
             
-            guardar_carrito({}) # Vaciar carrito
-            flash(f'¡Pedido realizado exitosamente!', 'success')
+            # Limpiar sesión
+            session['carrito'] = {}
+            session.modified = True
+            
+            flash('¡Pedido realizado exitosamente! Gracias por confiar en SYSTEMPLANT.', 'success')
             return redirect(url_for('tienda.mis_pedidos'))
             
         except Exception as e:
             flash(f'Error al procesar el pedido: {str(e)}', 'danger')
             
-    return render_template('tienda/checkout.html', subtotal=subtotal, total=total)
+    # 4. Renderizado (Aquí pasamos TODAS las variables)
+    return render_template('tienda/checkout.html', 
+                           plantas_carrito=plantas_carrito, 
+                           subtotal=subtotal, 
+                           iva=iva, 
+                           envio=envio, 
+                           total=total)
 
 @tienda_bp.route('/mis-pedidos')
 @login_required
 def mis_pedidos():
+    # Asegúrate de que el método get_by_usuario maneje el ObjectId correctamente
     pedidos = PedidoModel.get_by_usuario(current_user.id)
     return render_template('tienda/mis_pedidos.html', pedidos=pedidos)
 
-# routes.py (PARTE 3: Pedidos, Dashboard y Estadísticas Analíticas)
+    # --- AÑADE ESTO A ROUTES.PY ---
 
-# ========== MAIN ROUTES (DASHBOARD) ==========
+@tienda_bp.route('/pedido/<id>')
+@login_required
+def ver_pedido(id):
+    # Buscamos el pedido en la base de datos usando su ID
+    pedido = PedidoModel.get_by_id(id)
+    if not pedido:
+        flash('El pedido no existe.', 'danger')
+        return redirect(url_for('tienda.mis_pedidos'))
+    
+    return render_template('tienda/ver_pedido.html', pedido=pedido)
+
+@tienda_bp.route('/pedido/cancelar/<id>', methods=['POST'])
+@login_required
+def cancelar_pedido(id):
+    try:
+        pedido = PedidoModel.get_by_id(id)
+        if not pedido or str(pedido['id_cliente']) != str(current_user.id):
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+
+        # Lógica para restaurar stock si fuera necesario
+        for item in pedido['detalles']:
+            planta = PlantaModel.get_by_id(str(item['id_planta']))
+            if planta:
+                nuevo_stock = planta['stock'] + item['cantidad']
+                PlantaModel.update(str(item['id_planta']), {'stock': nuevo_stock, 'disponible_venta': True})
+
+        # Actualizar estado a cancelado
+        PedidoModel.update_status(id, 'cancelado')
+        
+        return jsonify({'success': True, 'message': 'Pedido cancelado correctamente'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== ADMIN DASHBOARD Y PEDIDOS ==========
+
 @main_bp.route('/')
 @main_bp.route('/dashboard')
 @login_required
@@ -820,239 +921,98 @@ def dashboard():
         return redirect(url_for('tienda.tienda_index'))
     
     db = get_db()
-    
-    # Conteos rápidos usando PyMongo
     total_plantas = db.plants.count_documents({})
     plantas_activas = db.plants.count_documents({'estado': 'activa'})
-    
-    # Obtener últimos riegos (usando aggregate con $lookup es posible, 
-    # pero para simplicidad traemos los logs y buscamos los nombres)
     ultimos_riegos = list(db.watering_logs.find().sort('fecha_riego', -1).limit(10))
+    
     for riego in ultimos_riegos:
         planta = db.plants.find_one({'_id': riego['id_planta']})
         riego['nombre_planta'] = planta['nombre'] if planta else 'Desconocida'
     
     ultimo_backup = db.backups.find_one(sort=[('fecha_respaldo', -1)])
-    ultimo_backup_fecha = ultimo_backup['fecha_respaldo'] if ultimo_backup else None
-    
-    return render_template('dashboard.html',
-                         total_plantas=total_plantas,
-                         plantas_riego_hoy=plantas_activas,
-                         ultimos_riegos=ultimos_riegos,
-                         ultimo_backup=ultimo_backup_fecha)
-
-
-
-#
-#
-#-----------------------------------------------------------------------------------
-# ========== ADMIN - GESTIÓN DE PEDIDOS ==========
-from bson import ObjectId
-from flask import request, jsonify, render_template, redirect, url_for, flash
-from datetime import datetime
+    return render_template('dashboard.html', total_plantas=total_plantas, 
+                         plantas_riego_hoy=plantas_activas, ultimos_riegos=ultimos_riegos, 
+                         ultimo_backup=ultimo_backup['fecha_respaldo'] if ultimo_backup else None)
 
 @main_bp.route('/admin/pedidos')
 @login_required
 def admin_pedidos():
     if current_user.rol != 'admin': 
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main_bp.dashboard')) # Cambié 'main' por 'main_bp'
     
     db = get_db()
     estado = request.args.get('estado', 'todos')
     query = {} if estado == 'todos' else {'estado_pedido': estado}
-    
     pedidos = list(db.orders.find(query).sort('fecha_orden', -1))
     
     for pedido in pedidos:
-        # --- Lógica de Cliente (para evitar el error anterior) ---
+        # 1. Traer datos del cliente
         u = db.users.find_one({'_id': pedido.get('id_cliente')})
-        pedido['cliente'] = u if u else {'nombre': 'Usuario Eliminado', 'correo': 'N/A'}
+        pedido['cliente'] = u if u else {'nombre': 'Usuario Eliminado'}
         
-        # --- Lógica de Detalles/Plantas (para evitar el error ACTUAL) ---
-        # Recorremos los detalles para asegurar que exista el objeto 'planta'
-        detalles_procesados = []
-        for det in pedido.get('detalles', []):
-            # Si el HTML busca 'detalle.planta.nombre', creamos esa estructura
-            if 'planta' not in det:
-                det['planta'] = {'nombre': det.get('nombre', 'Planta desconocida')}
-            detalles_procesados.append(det)
-        
-        pedido['detalles'] = detalles_procesados
-            
-    return render_template('admin/pedidos.html', pedidos=pedidos, estado=estado)
+        # 2. Traer nombres de las plantas para cada detalle
+        for detalle in pedido.get('detalles', []):
+            if 'id_planta' in detalle:
+                planta_doc = db.plants.find_one({'_id': detalle['id_planta']})
+                if planta_doc:
+                    detalle['nombre_planta'] = planta_doc.get('nombre', 'Sin nombre')
+                else:
+                    detalle['nombre_planta'] = 'Planta no encontrada'
+            else:
+                detalle['nombre_planta'] = 'ID no disponible'
 
-@main_bp.route('/admin/pedido/<id>')
-@login_required
-def admin_ver_pedido(id):
-    if current_user.rol != 'admin': 
-        return redirect(url_for('main.dashboard'))
-    
-    db = get_db()
-    try:
-        # Buscamos el pedido específico convirtiendo el ID de texto a ObjectId
-        pedido = db.orders.find_one({'_id': ObjectId(id)})
-        if not pedido:
-            flash('Pedido no encontrado', 'danger')
-            return redirect(url_for('main.admin_pedidos'))
-        
-        # Buscamos los datos del cliente para mostrar en el detalle
-        cliente = db.users.find_one({'_id': pedido.get('id_cliente')})
-        pedido['cliente'] = cliente
-        
-        # Los detalles (plantas compradas) ya están en pedido['detalles'] gracias a MongoDB
-        return render_template('admin/detalle_pedido.html', 
-                               pedido=pedido, 
-                               detalles=pedido.get('detalles', []))
-    except Exception as e:
-        flash(f'Error al cargar el pedido: {str(e)}', 'danger')
-        return redirect(url_for('main.admin_pedidos'))
+    return render_template('admin/pedidos.html', pedidos=pedidos, estado=estado)
 
 @main_bp.route('/admin/pedido/<id>/actualizar-estado', methods=['POST'])
 @login_required
 def actualizar_estado_pedido(id):
-    if current_user.rol != 'admin': 
+    if current_user.rol != 'admin':
         return jsonify({'success': False, 'message': 'No autorizado'}), 403
     
-    db = get_db()
-    data = request.get_json()
-    nuevo_estado = data.get('estado', '')
-    
-    estados_validos = ['pendiente', 'procesando', 'enviado', 'completado', 'cancelado']
-    if nuevo_estado not in estados_validos:
-        return jsonify({'success': False, 'message': 'Estado inválido'}), 400
-    
     try:
-        # 1. Obtener el estado anterior para saber si debemos ajustar stock
-        pedido_actual = db.orders.find_one({'_id': ObjectId(id)})
-        if not pedido_actual:
-            return jsonify({'success': False, 'message': 'Pedido no encontrado'}), 404
-
-        # 2. Lógica especial para CANCELACIÓN (Devolver stock)
-        # Si el pedido no estaba cancelado y ahora se cancela, devolvemos las plantas al stock
-        if nuevo_estado == 'cancelado' and pedido_actual.get('estado_pedido') != 'cancelado':
-            for item in pedido_actual.get('detalles', []):
-                db.plants.update_one(
-                    {'_id': item['planta_id']}, 
-                    {'$inc': {'stock': item['cantidad']}} # Incrementa el stock
-                )
-
-        # 3. Preparar los campos de actualización
-        update_fields = {'estado_pedido': nuevo_estado}
-        if nuevo_estado == 'enviado':
-            update_fields['fecha_envio'] = datetime.utcnow()
-        elif nuevo_estado == 'completado':
-            update_fields['fecha_completado'] = datetime.utcnow()
+        from bson import ObjectId
+        db = get_db()
+        nuevo_estado = request.json.get('estado')
         
-        # 4. Guardar cambios en la base de datos
-        db.orders.update_one({'_id': ObjectId(id)}, {'$set': update_fields})
+        # Actualizamos en la colección 'orders'
+        resultado = db.orders.update_one(
+            {'_id': ObjectId(id)},
+            {'$set': {'estado_pedido': nuevo_estado}}
+        )
         
-        return jsonify({
-            'success': True,
-            'message': f'Pedido actualizado a {nuevo_estado}',
-            'estado': nuevo_estado
-        })
-
+        if resultado.modified_count > 0:
+            return jsonify({'success': True, 'message': f'Pedido actualizado a {nuevo_estado}'})
+        return jsonify({'success': False, 'message': 'No se realizaron cambios'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-    
-    
-    
-    
-#
-#-----------------------------------------------------------------------------
-# ========== ADMIN - ESTADÍSTICAS TIENDA (AGGREGATION PIPELINES) ==========
+
+# ========== ESTADÍSTICAS (AGGREGATION) ==========
+
 @main_bp.route('/admin/estadisticas-tienda')
 @login_required
 def estadisticas_tienda():
     if current_user.rol != 'admin': return redirect(url_for('main.dashboard'))
-    
     db = get_db()
     
-    # 1. Ventas totales y ticket promedio (Pipeline)
-    ventas_pipeline = [
+    # Pipeline de ventas
+    ventas_result = list(db.orders.aggregate([
         {'$match': {'estado_pedido': {'$ne': 'cancelado'}}},
-        {'$group': {
-            '_id': None, 
-            'ventas_totales': {'$sum': '$costo_total'},
-            'total_pedidos': {'$sum': 1}
-        }}
-    ]
-    ventas_result = list(db.orders.aggregate(ventas_pipeline))
-    stats_generales = ventas_result[0] if ventas_result else {'ventas_totales': 0, 'total_pedidos': 0}
+        {'$group': {'_id': None, 'ventas_totales': {'$sum': '$costo_total'}, 'total_pedidos': {'$sum': 1}}}
+    ]))
+    stats = ventas_result[0] if ventas_result else {'ventas_totales': 0, 'total_pedidos': 0}
     
-    # 2. Pedidos por estado
-    pedidos_pendientes = db.orders.count_documents({'estado_pedido': 'pendiente'})
-    pedidos_procesando = db.orders.count_documents({'estado_pedido': 'procesando'})
-    pedidos_completados = db.orders.count_documents({'estado_pedido': 'completado'})
-    pedidos_cancelados = db.orders.count_documents({'estado_pedido': 'cancelado'})
-    
-    # 3. Productos más vendidos (El poder de $unwind)
-    # $unwind "desempaqueta" el array de detalles para poder sumarlos
-    productos_pipeline = [
+    # Productos más vendidos
+    productos_vendidos = list(db.orders.aggregate([
         {'$match': {'estado_pedido': {'$ne': 'cancelado'}}},
         {'$unwind': '$detalles'},
-        {'$group': {
-            '_id': '$detalles.id_planta',
-            'nombre': {'$first': '$detalles.nombre_planta'},
-            'total_vendido': {'$sum': '$detalles.cantidad'},
-            'ingresos': {'$sum': {'$multiply': ['$detalles.cantidad', '$detalles.precio_en_compra']}}
-        }},
-        {'$sort': {'total_vendido': -1}},
-        {'$limit': 10}
-    ]
-    productos_vendidos_list = list(db.orders.aggregate(productos_pipeline))
-    
-    # 4. Ventas mensuales (últimos 6 meses)
-    seis_meses_atras = datetime.utcnow() - timedelta(days=180)
-    mensuales_pipeline = [
-        {'$match': {
-            'fecha_orden': {'$gte': seis_meses_atras},
-            'estado_pedido': {'$ne': 'cancelado'}
-        }},
-        {'$group': {
-            # Extraemos el Año-Mes de la fecha ISO
-            '_id': {'$dateToString': {'format': '%Y-%m', 'date': '$fecha_orden'}},
-            'total_pedidos': {'$sum': 1},
-            'ventas_totales': {'$sum': '$costo_total'}
-        }},
-        {'$sort': {'_id': 1}}
-    ]
-    ventas_mensuales_raw = list(db.orders.aggregate(mensuales_pipeline))
-    
-    # Formatear meses a español
-    meses_espanol = {'01':'Enero', '02':'Febrero', '03':'Marzo', '04':'Abril', '05':'Mayo', '06':'Junio', 
-                     '07':'Julio', '08':'Agosto', '09':'Septiembre', '10':'Octubre', '11':'Noviembre', '12':'Diciembre'}
-    ventas_mensuales = []
-    for v in ventas_mensuales_raw:
-        anio, mes_num = v['_id'].split('-')
-        ventas_mensuales.append({
-            'mes': f"{meses_espanol.get(mes_num, mes_num)} {anio}",
-            'total_pedidos': v['total_pedidos'],
-            'ventas_totales': v['ventas_totales']
-        })
-    
-    # 5. Estadísticas de clientes
-    total_clientes = db.users.count_documents({'rol': 'cliente'})
-    clientes_activos = len(db.orders.distinct('id_cliente'))
-    ticket_promedio = stats_generales['ventas_totales'] / stats_generales['total_pedidos'] if stats_generales['total_pedidos'] > 0 else 0
-    tasa_conversion = (clientes_activos / total_clientes * 100) if total_clientes > 0 else 0
-    total_historico = stats_generales['total_pedidos'] + pedidos_cancelados
-    tasa_cancelacion = (pedidos_cancelados / total_historico * 100) if total_historico > 0 else 0
-    
-    return render_template('admin/estadisticas_tienda.html',
-                         ventas_totales=stats_generales['ventas_totales'],
-                         total_pedidos=stats_generales['total_pedidos'],
-                         pedidos_pendientes=pedidos_pendientes,
-                         pedidos_procesando=pedidos_procesando,
-                         pedidos_completados=pedidos_completados,
-                         pedidos_cancelados=pedidos_cancelados,
-                         productos_vendidos=productos_vendidos_list,
-                         ventas_mensuales=ventas_mensuales,
-                         total_clientes=total_clientes,
-                         clientes_activos=clientes_activos,
-                         ticket_promedio=ticket_promedio,
-                         tasa_conversion=tasa_conversion,
-                         tasa_cancelacion=tasa_cancelacion)
+        {'$group': {'_id': '$detalles.id_planta', 'nombre': {'$first': '$detalles.nombre_planta'}, 'total': {'$sum': '$detalles.cantidad'}}},
+        {'$sort': {'total': -1}}, {'$limit': 5}
+    ]))
+
+    return render_template('admin/estadisticas_tienda.html', 
+                         ventas_totales=stats['ventas_totales'], 
+                         total_pedidos=stats['total_pedidos'],
+                         productos_vendidos=productos_vendidos)
 
 #--------------------------------------------------------------------
 # ========== RESPALDO Y ANALISIS ==========

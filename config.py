@@ -8,43 +8,30 @@ class Config:
     # Configuración básica
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'clave-secreta-muy-segura-plantas-2026'
     
-    # Base de datos MongoDB Atlas (o local)
-    # Reemplaza 'gestion_plantas' por el nombre de tu base de datos si es distinto
-    MONGO_URI = os.environ.get('MONGO_URI') or 'mongodb://localhost:27017/gestion_plantas'
+    # Base de datos MongoDB Atlas (Actualizada)
+    # Se utiliza tu URI de Atlas por defecto, pero se prefiere la variable de entorno en producción
+    MONGO_URI = os.environ.get('MONGO_URI') or "mongodb+srv://admin:Emmanuel123@cluster0.cerffq3.mongodb.net/?appName=Cluster0"
     
     # Configuración de sesión
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=60)
-    SESSION_COOKIE_SECURE = False  # Cambia a True en producción con HTTPS
+    SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # ========== CONFIGURACIÓN PARA RESPALDOS ==========
-    # Configuración de backup
     BACKUP_DIR = os.path.join(basedir, 'backups')
     BACKUP_RETENTION_DAYS = 30
-    
-    # Tipos de backup soportados
     BACKUP_TYPES = ['completo', 'diferencial', 'minima_modificacion']
-    
-    # Tamaño máximo de archivos
     MAX_BACKUP_SIZE_MB = 50
-    
-    # Configuración de compresión
     COMPRESS_BACKUPS = True
     COMPRESSION_LEVEL = 9
-    
-    # Verificación de integridad
     VERIFY_CHECKSUM = True
     VERIFY_FILE_SIZE = True
-    
-    # Frecuencia de backups automáticos
     AUTO_BACKUP_INTERVAL = 24
     
-    # Alertas por email
+    # Notificaciones y Medios
     SEND_BACKUP_NOTIFICATIONS = False
     NOTIFICATION_EMAIL = os.environ.get('NOTIFICATION_EMAIL', '')
-    
-    # Medios de almacenamiento
     STORAGE_MEDIA = ['local', 'usb']
     
     # Configuración de correo
@@ -57,11 +44,7 @@ class Config:
     @staticmethod
     def init_app(app):
         """Inicializar la aplicación con configuraciones necesarias"""
-        # Crear directorios necesarios
-        directories = [
-            Config.BACKUP_DIR,
-            os.path.join(basedir, 'logs')
-        ]
+        directories = [Config.BACKUP_DIR, os.path.join(basedir, 'logs')]
         
         for directory in directories:
             if not os.path.exists(directory):
@@ -71,55 +54,40 @@ class Config:
                 except Exception as e:
                     print(f"⚠️  Error al crear directorio {directory}: {str(e)}")
         
-        # Configurar logging
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
-        
-        # Imprimir configuración MongoDB limpia (ocultando contraseñas por seguridad)
+        # Mostrar configuración de MongoDB de forma segura
         print(f"📋 Configuración MongoDB:")
-        uri_segura = Config.MONGO_URI
-        if '@' in uri_segura:
-            # Simple ocultamiento de credenciales para la consola
-            protocolo, resto = uri_segura.split('//')
-            credenciales, host = resto.split('@')
-            uri_segura = f"{protocolo}//***:***@{host}"
-            
-        print(f"   URI: {uri_segura}")
-        print(f"   Carpeta respaldos: {Config.BACKUP_DIR}")
-
+        uri_raw = Config.MONGO_URI
+        try:
+            # Lógica mejorada para ocultar contraseña en URIs de Atlas (mongodb+srv)
+            if "@" in uri_raw:
+                parte_inicial, resto = uri_raw.split("://")
+                credenciales, host = resto.split("@")
+                uri_segura = f"{parte_inicial}://***:***@{host.split('?')[0]}..."
+                print(f"   URI: {uri_segura}")
+            else:
+                print(f"   URI: {uri_raw}")
+        except Exception:
+            print("   URI: [Formato de URI no reconocido para impresión segura]")
 
 class DevelopmentConfig(Config):
-    """Configuración para desarrollo"""
     DEBUG = True
-    
-    # Para desarrollo, desactivamos algunas verificaciones estrictas
     VERIFY_CHECKSUM = False
     SEND_BACKUP_NOTIFICATIONS = False
 
 class ProductionConfig(Config):
-    """Configuración para producción"""
     DEBUG = False
-    
-    # Seguridad en producción
     SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
-    
-    # Configuración de respaldos más estricta
     VERIFY_CHECKSUM = True
-    VERIFY_FILE_SIZE = True
     SEND_BACKUP_NOTIFICATIONS = True
 
 class TestingConfig(Config):
-    """Configuración para testing"""
     TESTING = True
     DEBUG = True
-    
-    # Para testing, usar una base de datos diferente
+    # URI de prueba (puedes cambiarla a una DB local o una base 'test' en Atlas)
     MONGO_URI = os.environ.get('TEST_MONGO_URI') or 'mongodb://localhost:27017/test_gestion_plantas'
     BACKUP_DIR = os.path.join(basedir, 'test_backups')
 
-# Diccionario de configuraciones
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,

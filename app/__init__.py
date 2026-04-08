@@ -127,6 +127,7 @@ def register_blueprints(app):
         app.register_blueprint(main_bp)
         app.register_blueprint(plants_bp, url_prefix='/plantas')
         app.register_blueprint(backup_bp, url_prefix='/respaldos')
+        
         app.register_blueprint(reports_bp, url_prefix='/reportes')
         app.logger.info('Blueprints principales registrados exitosamente')
     except ImportError as e:

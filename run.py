@@ -1,9 +1,12 @@
 # run.py
 import os
 import sys
+import subprocess
+import time
+from multiprocessing import Process
 from dotenv import load_dotenv
 
-# 1. Cargar las variables del .env ANTES de importar cualquier configuración
+# 1. Cargar las variables del .env
 load_dotenv()
 
 # Agregar el directorio actual al path
@@ -13,30 +16,59 @@ try:
     from app import create_app
 except ImportError as e:
     print(f"❌ Error de importación: {e}")
-    print("\n🔧 Solución de problemas:")
-    print("1. Asegúrate de que estás en el entorno virtual: venv\\Scripts\\activate")
-    print("2. Instala las dependencias: pip install -r requirements.txt")
-    print("3. Verifica la estructura de carpetas")
-    input("\nPresiona Enter para salir...")
     sys.exit(1)
 
 app = create_app('development')
 
-if __name__ == '__main__':
-    print("=" * 50)
-    print("🌱 SISTEMA DE GESTIÓN DE PLANTAS")
-    print("=" * 50)
-    print(f"📁 Directorio: {os.path.abspath('.')}")
-    print(f"🔧 Modo: {'Desarrollo' if app.debug else 'Producción'}")
-    print(f"🌐 URL: http://localhost:5000")
-    print("=" * 50)
+# --- FUNCIÓN PARA EJECUTAR EL DASHBOARD DE SPARK ---
+def ejecutar_streamlit():
+    """Lanza el dashboard de Streamlit que está en la carpeta spark."""
+    print("🚀 Iniciando Dashboard de Analítica (Spark/Streamlit)...")
+    # Ruta al archivo dentro de la carpeta spark
+    ruta_spark = os.path.join("spark", "regresion_analytics_graficos_dash.py")
     
     try:
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        # Ejecuta: streamlit run spark/regresion_analytics_graficos_dash.py
+        subprocess.check_call(["streamlit", "run", ruta_spark])
     except Exception as e:
-        print(f"\n❌ Error: {e}")
-        print("\n🔧 Solución de problemas:")
-        print("1. Verifica tu conexión a Internet y tu MONGO_URI de Atlas")
-        print("2. Verifica el puerto 5000 no esté en uso")
-        print("3. Revisa los logs en la carpeta 'logs/'")
-        input("\nPresiona Enter para salir...")
+        print(f"❌ Error al iniciar Streamlit: {e}")
+
+# --- FUNCIÓN PARA EJECUTAR FLASK ---
+def ejecutar_flask():
+    """Lanza la aplicación principal de Flask."""
+    print("🌐 Iniciando Servidor Principal (Flask)...")
+    try:
+        app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False)
+    except Exception as e:
+        print(f"❌ Error en Flask: {e}")
+
+if __name__ == '__main__':
+    print("=" * 60)
+    print("🌿 SISTEMA INTEGRADO DE GESTIÓN E INVERNADERO PRO")
+    print("=" * 60)
+    
+    # Creamos dos procesos independientes
+    proceso_flask = Process(target=ejecutar_flask)
+    proceso_spark = Process(target=ejecutar_streamlit)
+
+    try:
+        # Iniciar ambos
+        proceso_flask.start()
+        time.sleep(2)  # Pequeña pausa para no saturar la consola
+        proceso_spark.start()
+
+        print("\n✅ AMBOS SISTEMAS ESTÁN CORRIENDO:")
+        print("🔗 App Principal:  http://localhost:5000")
+        print("🔗 Dashboard ML:   http://localhost:8501")
+        print("=" * 60)
+        print("Presiona Ctrl+C para detener ambos servidores.\n")
+
+        # Mantener el script vivo mientras los procesos corran
+        proceso_flask.join()
+        proceso_spark.join()
+
+    except KeyboardInterrupt:
+        print("\n🛑 Deteniendo servidores...")
+        proceso_flask.terminate()
+        proceso_spark.terminate()
+        print("✅ Sistemas cerrados correctamente.")
