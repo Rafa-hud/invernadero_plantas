@@ -413,6 +413,7 @@ def es_url_imagen_valida(url):
     return False
 
 # ========== PLANTAS ROUTES ==========
+# ========== PLANTAS ROUTES ==========
 @plants_bp.route('/')
 @login_required
 def listar_plantas():
@@ -420,12 +421,41 @@ def listar_plantas():
         flash('Acceso no autorizado', 'danger')
         return redirect(url_for('tienda.tienda_index'))
     
+    # 1. Obtener la lista completa de plantas según el rol
     if current_user.rol == 'admin':
-        plantas = PlantaModel.get_all()
+        plantas_raw = PlantaModel.get_all()
     else:
-        plantas = PlantaModel.get_by_usuario(current_user.id)
+        plantas_raw = PlantaModel.get_by_usuario(current_user.id)
     
-    return render_template('plants/lista.html', plantas=plantas)
+    # 2. Configuración de Paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Número de plantas por página
+    total = len(plantas_raw)
+    
+    # 3. Lógica de Segmentación (Slicing)
+    start = (page - 1) * per_page
+    end = start + per_page
+    plantas_paginadas = plantas_raw[start:end]
+    
+    # 4. Cálculo de número de páginas
+    total_pages = (total // per_page) + (1 if total % per_page > 0 else 0)
+
+    # 5. Diccionario de paginación para el HTML
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1,
+        'next_num': page + 1
+    }
+    
+    # IMPORTANTE: Enviamos 'plantas_paginadas' en lugar de 'plantas_raw'
+    return render_template('plants/lista.html', 
+                           plantas=plantas_paginadas, 
+                           pagination=pagination)
 
 @plants_bp.route('/crear', methods=['GET', 'POST'])
 @login_required
@@ -657,14 +687,16 @@ def tienda_index():
     if current_user.rol != 'cliente': 
         return redirect(url_for('main.dashboard'))
     
-    # Obtenemos el orden desde la URL (tu dropdown lo usa)
+    # --- CONFIGURACIÓN DE PAGINACIÓN ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Número de productos por página
     orden = request.args.get('orden', 'nombre')
     
-    # Traemos las plantas y categorías
-    plantas_raw = PlantaModel.get_disponibles() # Debería devolver objetos o dicts
+    # Obtener datos base
+    plantas_raw = PlantaModel.get_disponibles() 
     categorias = PlantaModel.get_categorias_disponibles()
 
-    # Lógica de ordenamiento simple para el dropdown
+    # Lógica de ordenamiento (mantenemos la tuya)
     if orden == 'precio_asc':
         plantas_raw.sort(key=lambda x: float(x.get('precio', 0)))
     elif orden == 'precio_desc':
@@ -672,15 +704,40 @@ def tienda_index():
     else:
         plantas_raw.sort(key=lambda x: x.get('nombre', '').lower())
 
-    # Formateamos para el template (asegurando que tengan 'id' como string)
+    # --- LÓGICA DE SEGMENTACIÓN ---
+    total = len(plantas_raw)
+    total_pages = (total // per_page) + (1 if total % per_page > 0 else 0)
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    plantas_paginadas = plantas_raw[start:end]
+
+    # Formatear para el template
     plantas = []
-    for p in plantas_raw:
+    for p in plantas_paginadas:
         p_dict = dict(p)
         p_dict['id'] = str(p['_id'])
-        # Si no hay imagen_url, el template usará el icono de hoja por defecto
         plantas.append(p_dict)
     
-    return render_template('tienda/index.html', plantas=plantas, categorias=categorias)
+    # CREAR EL DICCIONARIO QUE EL HTML ESTÁ BUSCANDO
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1,
+        'next_num': page + 1
+    }
+    
+    # EL CAMBIO MÁS IMPORTANTE: Pasar 'pagination' y 'orden' al template
+    # ... después de calcular 'pagination' ...
+    return render_template('tienda/index.html', 
+                       plantas=plantas, 
+                       categorias=categorias, 
+                       pagination=pagination, # ESTO ES LO MÁS IMPORTANTE
+                       orden=orden)
 
 @tienda_bp.route('/planta/<id>')
 @login_required

@@ -201,21 +201,24 @@
 </div>
 
 <!-- Lista de plantas -->
+
 <div class="row">
     <div class="col-12 mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <h4>
                 <i class="fas fa-store text-success"></i> Plantas Disponibles
-                <span class="badge bg-success">{{ plantas|length }}</span>
+                <span class="badge bg-success">
+                    {% if pagination is defined %}{{ pagination.total }}{% else %}{{ plantas|length }}{% endif %}
+                </span>
             </h4>
             <div class="dropdown">
                 <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     <i class="fas fa-sort"></i> Ordenar
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="?orden=nombre">Por nombre</a></li>
-                    <li><a class="dropdown-item" href="?orden=precio_asc">Precio: menor a mayor</a></li>
-                    <li><a class="dropdown-item" href="?orden=precio_desc">Precio: mayor a menor</a></li>
+                    <li><a class="dropdown-item" href="?orden=nombre&page={{ request.args.get('page', 1) }}">Por nombre</a></li>
+                    <li><a class="dropdown-item" href="?orden=precio_asc&page={{ request.args.get('page', 1) }}">Precio: menor a mayor</a></li>
+                    <li><a class="dropdown-item" href="?orden=precio_desc&page={{ request.args.get('page', 1) }}">Precio: mayor a menor</a></li>
                 </ul>
             </div>
         </div>
@@ -223,88 +226,87 @@
     
     {% if plantas %}
         {% for planta in plantas %}
-        <div class="col-md-4 col-lg-3 mb-4">
-            <div class="card card-planta {% if planta.stock < 5 %}planta-destacada{% endif %}">
-                <!-- Imagen de la planta -->
-                {% if planta.imagen_url %}
-                <img src="{{ planta.imagen_url }}" class="card-planta-img" alt="{{ planta.nombre }}">
-                {% else %}
-                <div class="card-planta-img bg-light d-flex align-items-center justify-content-center">
-                    <i class="fas fa-leaf fa-5x text-success opacity-25"></i>
-                </div>
-                {% endif %}
-                
-                <div class="card-planta-body">
-                    <!-- Categoría -->
-                    {% if planta.categoria %}
-                    <div class="mb-2">
-                        <span class="badge-categoria">{{ planta.categoria|title }}</span>
-                    </div>
+            <div class="col-md-4 col-lg-3 mb-4">
+                <div class="card card-planta {% if planta.stock < 5 %}planta-destacada{% endif %}">
+                    {% if planta.imagen_url %}
+                        <img src="{{ planta.imagen_url }}" class="card-planta-img" alt="{{ planta.nombre }}">
+                    {% else %}
+                        <div class="card-planta-img bg-light d-flex align-items-center justify-content-center">
+                            <i class="fas fa-leaf fa-5x text-success opacity-25"></i>
+                        </div>
                     {% endif %}
-                    
-                    <!-- Nombre y especie -->
-                    <h5 class="card-title">{{ planta.nombre }}</h5>
-                    {% if planta.especie %}
-                    <p class="text-muted small mb-2">
-                        <i class="fas fa-seedling"></i> {{ planta.especie }}
-                    </p>
-                    {% endif %}
-                    
-                    <!-- Precio -->
-                    <div class="mb-2">
-                        <span class="precio">${{ "%.2f"|format(planta.precio) }}</span>
-                    </div>
-                    
-                    <!-- Descripción breve -->
-                    {% if planta.descripcion %}
-                    <p class="card-text small text-muted mb-3">
-                        {{ planta.descripcion[:100] }}{% if planta.descripcion|length > 100 %}...{% endif %}
-                    </p>
-                    {% endif %}
-                    
-                    <!-- Stock -->
-                    <div class="mb-3">
-                        {% if planta.stock > 10 %}
-                        <span class="badge bg-success">Disponible</span>
-                        {% elif planta.stock > 0 %}
-                        <span class="badge bg-warning">Últimas unidades</span>
-                        {% else %}
-                        <span class="badge bg-danger">Agotado</span>
-                        {% endif %}
-                        <small class="text-muted ms-2">{{ planta.stock }} en stock</small>
-                    </div>
-                    
-                    <!-- Botones de acción -->
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" 
-                           class="btn btn-tienda btn-sm">
-                            <i class="fas fa-eye"></i> Ver detalles
-                        </a>
-                        {% if planta.stock > 0 %}
-                        <button class="btn btn-outline-success btn-sm agregar-carrito" 
-                                data-planta-id="{{ planta.id }}"
-                                data-planta-nombre="{{ planta.nombre }}"
-                                data-planta-stock="{{ planta.stock }}">
-                            <i class="fas fa-cart-plus"></i> Añadir al carrito
-                        </button>
-                        {% else %}
-                        <button class="btn btn-outline-secondary btn-sm" disabled>
-                            <i class="fas fa-times"></i> Agotado
-                        </button>
-                        {% endif %}
+                    <div class="card-planta-body">
+                        <div class="mb-2"><span class="badge-categoria">{{ planta.categoria|title }}</span></div>
+                        <h5 class="card-title">{{ planta.nombre }}</h5>
+                        <div class="mb-2"><span class="precio">${{ "%.2f"|format(planta.precio) }}</span></div>
+                        <div class="mb-3">
+                            <small class="text-muted">{{ planta.stock }} en stock</small>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('tienda.ver_planta_tienda', id=planta.id) }}" class="btn btn-tienda btn-sm">Ver detalles</a>
+                            {% if planta.stock > 0 %}
+                                <button class="btn btn-outline-success btn-sm agregar-carrito" 
+                                        data-planta-id="{{ planta.id }}" 
+                                        data-planta-nombre="{{ planta.nombre }}">
+                                    <i class="fas fa-cart-plus"></i> Añadir
+                                </button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
         {% endfor %}
-    {% else %}
-    <div class="col-12">
-        <div class="alert alert-info text-center py-5">
-            <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
-            <h4>No hay plantas disponibles en este momento</h4>
-            <p>Pronto tendremos nuevas plantas en stock.</p>
-        </div>
+
+        {% if pagination is defined %}
+    <div class="col-12 mt-5 mb-5">
+        <nav aria-label="Navegación de productos">
+    <ul class="pagination justify-content-center flex-wrap">
+        
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+            <a class="page-link" href="{{ url_for('tienda.tienda_index', page=pagination.prev_num, orden=request.args.get('orden', 'nombre')) }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+
+        {% set window = 2 %} {# Cuántos números mostrar a los lados de la página actual #}
+        
+        {% for p in range(1, pagination.pages + 1) %}
+            {% if p == 1 or p == pagination.pages or (p >= pagination.page - window and p <= pagination.page + window) %}
+                <li class="page-item {{ 'active' if p == pagination.page }}">
+                    <a class="page-link {% if p == pagination.page %}bg-success text-white border-success{% endif %}" 
+                       href="{{ url_for('tienda.tienda_index', page=p, orden=request.args.get('orden', 'nombre')) }}">
+                        {{ p }}
+                    </a>
+                </li>
+            {% elif p == pagination.page - window - 1 or p == pagination.page + window + 1 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+            <a class="page-link" href="{{ url_for('tienda.tienda_index', page=pagination.next_num, orden=request.args.get('orden', 'nombre')) }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+        <p class="text-center text-muted small">
+            Viendo página {{ pagination.page }} de {{ pagination.pages }} (Total: {{ pagination.total }} plantas)
+        </p>
     </div>
+{% else %}
+    <div class="col-12 text-center text-danger">
+        <p>Error: La variable 'pagination' no fue enviada desde el servidor.</p>
+    </div>
+{% endif %}
+
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5">
+                <i class="fas fa-seedling fa-4x text-muted mb-3"></i>
+                <h4>No hay plantas disponibles</h4>
+            </div>
+        </div>
     {% endif %}
 </div>
 
