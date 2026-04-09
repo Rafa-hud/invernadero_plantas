@@ -6,7 +6,9 @@
 <div class="container mt-4">
     <h1 class="mb-4">
         <i class="fas fa-seedling text-success"></i> Mis Plantas
-        <span class="badge bg-success rounded-pill ms-2">{{ plantas|length }} plantas</span>
+        <span class="badge bg-success rounded-pill ms-2">
+            {{ pagination.total if pagination is defined else plantas|length }} plantas
+        </span>
     </h1>
     
     <!-- Botones principales -->
@@ -501,7 +503,7 @@
     {% endif %}
     
     <!-- Estadísticas -->
-    <div class="row mt-5">
+    <!--<div class="row mt-5">
         <div class="col-md-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
@@ -543,7 +545,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div>-->
     
     {% else %}
     <div class="alert alert-info border-0 shadow-sm">
@@ -564,6 +566,51 @@
 </div>
 
 <style>
+    /* Estilos para la Paginación Modernizada */
+.pagination {
+    gap: 8px; /* Espacio entre botones */
+}
+
+.page-item {
+    border: none;
+}
+
+.page-link {
+    border: 1px solid rgba(0,0,0,0.05) !important;
+    border-radius: 10px !important; /* Bordes redondeados */
+    color: var(--text-dark);
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background-color: white;
+}
+
+.page-link:hover {
+    background-color: var(--soft-green);
+    color: var(--primary-green);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
+}
+
+.page-item.disabled .page-link {
+    background-color: #f8f9fa;
+    color: #ced4da;
+    border-color: #e9ecef !important;
+}
+
+/* Estilo para los puntos suspensivos (...) */
+.page-item.disabled span.page-link {
+    background: transparent;
+    border: none !important;
+}
+
     .card {
         transition: all 0.3s ease;
         border-radius: 12px;
