@@ -1,17 +1,11 @@
 from flask import Flask
 from flask_login import LoginManager
-from config import config
+# CAMBIO AQUÍ: Importamos el archivo específico dentro de la carpeta config
+from app.config.mongo_spark_conexion_sinnulos import config 
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 from flask_mail import Mail
-#from flask_wtf.csrf import CSRFProtect
-
-# Inicializar extensiones
-login_manager = LoginManager()
-mail = Mail()
-#csrf = CSRFProtect()  # <--- Decláralo aquí, SIN la (app)
-
 
 # Inicializar extensiones
 login_manager = LoginManager()
@@ -21,9 +15,6 @@ mail = Mail()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
 login_manager.login_message_category = 'warning'
-
-
-
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -40,7 +31,7 @@ def create_app(config_name='default'):
     
     app = Flask(__name__)
     
-    # Cargar configuración
+    # Cargar configuración desde el diccionario 'config' que importamos arriba
     app.config.from_object(config[config_name])
     
     # Inicializar configuración si existe el método init_app
@@ -54,13 +45,11 @@ def create_app(config_name='default'):
     app.config['PLANTAS_UPLOAD_FOLDER'] = os.path.join(app.config['UPLOAD_FOLDER'], 'plantas')
     app.config['USERS_UPLOAD_FOLDER'] = os.path.join(app.config['UPLOAD_FOLDER'], 'usuarios')
     
-    # Agregar variable global 'now' a todas las plantillas
     @app.context_processor
     def inject_datetime():
         from datetime import datetime
         return {'datetime': datetime, 'now': datetime.now()}
     
-    # Inyectar configuración de la app en templates
     @app.context_processor
     def inject_config():
         return {
@@ -69,27 +58,18 @@ def create_app(config_name='default'):
             'config': app.config
         }
         
-    # Inicializar extensiones con la aplicación
     login_manager.init_app(app)
     mail.init_app(app)
-    #csrf.init_app(app)
     
-    # Configurar logging
     configure_logging(app)
-    
-    # Registrar blueprints (rutas)
     register_blueprints(app)
-    
-    # Configurar y verificar carpetas necesarias
     setup_folders(app)
-    
-    # Inicializar base de datos y datos por defecto
     setup_database(app)
-    
-    # Configurar planificador de respaldos
     setup_backup_scheduler(app)
     
     return app
+
+# ... (El resto de tus funciones configure_logging, register_blueprints, etc., se mantienen igual)
 
 def configure_logging(app):
     """Configurar sistema de logging"""

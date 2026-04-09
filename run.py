@@ -1,49 +1,68 @@
 # run.py
 import os
 import sys
+import subprocess
 from dotenv import load_dotenv
 
 # 1. Cargar las variables del .env
 load_dotenv()
 
 # --- CONFIGURACIÓN DE RUTAS ---
-# Obtenemos la ruta absoluta de la carpeta raíz (Invernadero_plantas-)
+# Obtenemos la ruta absoluta de la carpeta raíz (donde está este run.py)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Insertamos la raíz al inicio de sys.path para que 'app' y 'config' sean visibles
+# Aseguramos que la raíz esté en el path
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-# Sincronizamos la variable de entorno para los subprocesos de Spark/Streamlit
+# Sincronizamos PYTHONPATH para que los scripts en spark/ encuentren a app.config
 os.environ["PYTHONPATH"] = BASE_DIR
 
-# 2. IMPORTACIÓN DE LA APP (Debe ir después de configurar sys.path)
+# 2. IMPORTACIÓN DE LA APP
 try:
+    # Como moviste 'config' dentro de 'app', ya no habrá colisión con archivos de la raíz
     from app import create_app
 except ImportError as e:
     print(f"❌ Error de importación: {e}")
-    print("Tip: Asegúrate de que no exista un archivo '__init__.py' en la raíz o en 'config' que cause colisiones.")
+    print("Verifica que la carpeta 'app' contenga un archivo '__init__.py'.")
     sys.exit(1)
 
 app = create_app('development')
 
+def limpiar_puertos_streamlit():
+    """Limpia procesos de Streamlit que hayan quedado colgados en el puerto 8501."""
+    try:
+        # Comando para Linux para liberar el puerto 8501 y evitar errores de puerto ocupado
+        subprocess.run(["fuser", "-k", "8501/tcp"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        print("🧹 Puerto 8501 liberado correctamente.")
+    except Exception:
+        # En caso de no tener privilegios o no estar en Linux, ignoramos el error
+        pass
+
 if __name__ == '__main__':
     print("=" * 60)
-    print("🌿 INTELLIGENCE PLANT - SERVIDOR DE GESTIÓN")
+    print("🌿 INTELLIGENCE PLANT - SISTEMA DE ANALÍTICA")
     print("=" * 60)
     
+    # Limpieza preventiva de puertos
+    limpiar_puertos_streamlit()
+    
     try:
-        print("🌐 Iniciando Servidor Vivero Digital (Flask)...")
-        print(f"🔗 URL Local: http://localhost:5000")
+        print("🌐 Panel de Control: http://localhost:5000")
+        print("📊 Dashboards Spark: http://localhost:8501")
         print("=" * 60)
-        print("Los algoritmos de Spark se ejecutarán desde la interfaz web.")
-        print("Presiona Ctrl+C para detener el servidor.\n")
         
-        # Ejecutamos Flask
-        # Nota: use_reloader=False evita que el servidor se reinicie dos veces
-        # lo cual es más estable cuando lanzas subprocesos de Spark.
-        app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+        # --- CONFIGURACIÓN DE EJECUCIÓN ---
+        # debug=True: Útil para ver errores en desarrollo.
+        # use_reloader=False: CLAVE para evitar que Flask se reinicie y abra pestañas dobles.
+        app.run(
+            debug=True, 
+            host='0.0.0.0', 
+            port=5000, 
+            use_reloader=False 
+        )
 
     except KeyboardInterrupt:
-        print("\n🛑 Apagando servidor...")
-        print("✅ Sistema cerrado correctamente.")
+        print("\n🛑 Apagando servicios...")
+        limpiar_puertos_streamlit()
+        print("✅ Servidor detenido y recursos liberados.")

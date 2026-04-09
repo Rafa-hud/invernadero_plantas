@@ -1944,12 +1944,16 @@ def debug_set_admin():
 import subprocess
 import os
 import sys
-from flask import redirect, current_app, flash, url_for
+import socket
+from flask import redirect, current_app, flash, url_for, jsonify
+
+# --- RUTAS DE INTEGRACIÓN SPARK & STREAMLIT ---
 
 @main_bp.route('/run_spark/<script>')
 def run_spark(script):
-    # 1. Obtener la ruta raíz (donde está la carpeta config y spark)
-    # current_app.root_path apunta a /app, subimos un nivel
+    """Lanza los scripts de Spark/Streamlit usando la nueva estructura de carpetas"""
+    # 1. Obtener la ruta raíz (Invernadero_plantas-)
+    # current_app.root_path es /app, bajamos uno para llegar a la raíz
     base_dir = os.path.abspath(os.path.join(current_app.root_path, ".."))
     script_path = os.path.join(base_dir, "spark", script)
 
@@ -1958,26 +1962,56 @@ def run_spark(script):
         return redirect(url_for('main.reportes'))
 
     try:
-        # 2. Configurar el entorno de Python
+        # 2. Configurar el entorno (IMPORTANTE para encontrar app.config)
         env = os.environ.copy()
-        # Forzamos a que la raíz del proyecto sea la prioridad de búsqueda
+        # Esto permite que los scripts en /spark hagan "from app.config... import..."
         env["PYTHONPATH"] = base_dir 
         
-        # 3. Comando de ejecución
+        # 3. Comando de ejecución optimizado
         if "dashboard" in script or "graficos" in script:
-            # Ejecutamos Streamlit como módulo de Python para mantener el entorno
-            comando = [sys.executable, "-m", "streamlit", "run", script_path, "--server.port", "8501"]
+            # Ejecutamos con headless=true para que Flask mantenga el control
+            comando = [
+                sys.executable, "-m", "streamlit", "run", script_path, 
+                "--server.port", "8501",
+                "--server.headless", "true"
+            ]
         else:
             comando = [sys.executable, script_path]
 
-        # 4. LANZAR PROCESO (Clave: cwd=base_dir)
-        # cwd asegura que el script se ejecute "parado" en la raíz del proyecto
+        # 4. LANZAR PROCESO
+        # cwd=base_dir asegura que el script busque archivos desde la raíz
         subprocess.Popen(comando, env=env, cwd=base_dir)
         
-        print(f"🚀 Ejecutando desde la raíz: {base_dir}")
+        print(f"🚀 Dashboard iniciado desde: {base_dir}")
         
     except Exception as e:
-        print(f"❌ Error: {e}")
-        flash("Error al iniciar el proceso.", "danger")
+        print(f"❌ Error al lanzar Spark: {e}")
+        flash("Error al iniciar el motor de analítica.", "danger")
 
+    # Redirigimos al puerto donde corre Streamlit
     return redirect("http://localhost:8501")
+
+
+@main_bp.route('/stop_all_spark')
+def stop_all_spark():
+    """Cierra cualquier proceso de Streamlit/Spark en el puerto 8501"""
+    try:
+        # Comando para Linux para liberar el puerto 8501
+        subprocess.run(["fuser", "-k", "8501/tcp"], check=False)
+        return jsonify({"message": "Procesos de analítica detenidos correctamente."})
+    except Exception as e:
+        return jsonify({"message": f"Error al detener procesos: {str(e)}"}), 500
+
+
+@main_bp.route('/check_spark_status')
+def check_spark_status():
+    """Verifica si el servidor de Spark/Streamlit está activo"""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1) # No esperar más de 1 segundo
+        result = sock.connect_ex(('127.0.0.1', 8501))
+        sock.close()
+        # Si result es 0, el puerto está respondiendo
+        return jsonify({"active": result == 0})
+    except Exception:
+        return jsonify({"active": False})

@@ -4,95 +4,59 @@
 
 {% block extra_css %}
 <style>
-    /* Fondo con gradiente inspirado en naturaleza y tecnología */
-    body {
-        background: linear-gradient(135deg, #0a1a12 0%, #121212 100%);
-    }
+/* ... (Se mantiene tu CSS original igual) ... */
+body { background: linear-gradient(135deg, #0a1a12 0%, #121212 100%); }
+.ml-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(40, 167, 69, 0.2); border-radius: 20px; background: rgba(30, 30, 38, 0.8); backdrop-filter: blur(10px); color: white; overflow: hidden; position: relative; }
+.ml-card:hover { transform: translateY(-12px); box-shadow: 0 15px 35px rgba(40, 167, 69, 0.3); background: rgba(35, 45, 40, 0.9); border-color: #28a745; }
+.btn-execute { border-radius: 12px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; width: 100%; padding: 12px; transition: 0.3s; border: none; background: linear-gradient(45deg, #28a745, #20c997); color: white; }
+.btn-execute:hover { background: linear-gradient(45deg, #218838, #19a97b); box-shadow: 0 5px 15px rgba(32, 201, 151, 0.4); color: white; }
+.spark-icon { font-size: 3.5rem; margin-bottom: 1.2rem; background: linear-gradient(45deg, #a8e063, #56ab2f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(86, 171, 47, 0.3)); }
+.status-badge { position: absolute; top: 20px; right: 20px; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; text-transform: uppercase; }
+.leaf-decoration { position: absolute; bottom: -20px; right: -20px; font-size: 5rem; opacity: 0.05; transform: rotate(-20deg); color: #28a745; }
 
-    .ml-card {
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        border: 1px solid rgba(40, 167, 69, 0.2);
-        border-radius: 20px;
-        background: rgba(30, 30, 38, 0.8);
-        backdrop-filter: blur(10px);
-        color: white;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .ml-card:hover {
-        transform: translateY(-12px);
-        box-shadow: 0 15px 35px rgba(40, 167, 69, 0.3);
-        background: rgba(35, 45, 40, 0.9);
-        border-color: #28a745;
-    }
-
-    .btn-execute {
-        border-radius: 12px;
-        text-transform: uppercase;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-        width: 100%;
-        padding: 12px;
-        transition: 0.3s;
-        border: none;
-        background: linear-gradient(45deg, #28a745, #20c997);
-        color: white;
-    }
-
-    .btn-execute:hover {
-        background: linear-gradient(45deg, #218838, #19a97b);
-        box-shadow: 0 5px 15px rgba(32, 201, 151, 0.4);
-        color: white;
-    }
-
-    .spark-icon {
-        font-size: 3.5rem;
-        margin-bottom: 1.2rem;
-        background: linear-gradient(45deg, #a8e063, #56ab2f);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 0 10px rgba(86, 171, 47, 0.3));
-    }
-
-    .status-badge {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-    }
-
-    .leaf-decoration {
-        position: absolute;
-        bottom: -20px;
-        right: -20px;
-        font-size: 5rem;
-        opacity: 0.05;
-        transform: rotate(-20deg);
-        color: #28a745;
-    }
+/* Estilos para la barra de control nueva */
+.system-control-bar {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 30px;
+    border: 1px dashed rgba(40, 167, 69, 0.3);
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-5">
-    <div class="row mb-5">
+    <div class="row mb-4">
         <div class="col-12 text-center">
             <h1 class="display-3 fw-bold text-white mb-3">
                 <i class="fas fa-leaf text-success"></i> Intelligence Plant
             </h1>
             <p class="lead text-success fw-light">Sistemas Distribuidos de Analítica Predictiva para el Invernadero</p>
-            <div class="d-flex justify-content-center">
-                <hr class="bg-success border-2 opacity-50 w-25">
+        </div>
+    </div>
+
+    <div class="system-control-bar">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h5 class="text-white mb-0"><i class="fas fa-server me-2 text-success"></i> Gestión de Infraestructura Spark</h5>
+                <p class="text-muted small mb-md-0">Control de procesos activos en el puerto 8501</p>
             </div>
+            <div class="col-md-6 text-md-end">
+                <button onclick="verificarEstado()" class="btn btn-outline-info btn-sm me-2">
+                    <i class="fas fa-sync me-1"></i> Verificar Estado
+                </button>
+                <button onclick="detenerServidores()" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-power-off me-1"></i> Detener Todo (8501)
+                </button>
+            </div>
+        </div>
+        <div id="status-alert" class="mt-3 d-none">
+            <div class="alert py-2 small mb-0" id="status-msg"></div>
         </div>
     </div>
 
     <div class="row g-4">
-        
         <div class="col-lg-4 col-md-6">
             <div class="card ml-card h-100 p-4">
                 <span class="badge bg-success status-badge">Activo</span>
@@ -100,8 +64,7 @@
                     <i class="fas fa-microchip spark-icon"></i>
                     <h4 class="fw-bold">MapReduce Dash</h4>
                     <p class="text-muted small">Mapeo de inventario y reducción de costos operativos mediante procesamiento en paralelo.</p>
-                    <a href="{{ url_for('main.run_spark', script='01_dashboard_mapreduce.py') }}" 
-                       class="btn btn-execute" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='01_dashboard_mapreduce.py') }}" class="btn btn-execute">
                         <i class="fas fa-external-link-alt me-2"></i> Abrir Análisis
                     </a>
                 </div>
@@ -116,8 +79,7 @@
                     <i class="fas fa-project-diagram spark-icon"></i>
                     <h4 class="fw-bold">Segmentación VIP</h4>
                     <p class="text-muted small">Agrupación automática de plantas por valor de mercado y requerimientos de stock.</p>
-                    <a href="{{ url_for('main.run_spark', script='04_dashboard_kmeans.py') }}" 
-                       class="btn btn-execute" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='04_dashboard_kmeans.py') }}" class="btn btn-execute">
                         <i class="fas fa-chart-pie me-2"></i> Lanzar K-Means
                     </a>
                 </div>
@@ -132,8 +94,7 @@
                     <i class="fas fa-chart-line spark-icon"></i>
                     <h4 class="fw-bold">Proyección Ventas</h4>
                     <p class="text-muted small">Modelos matemáticos para estimar los ingresos del próximo ciclo de cultivo.</p>
-                    <a href="{{ url_for('main.run_spark', script='07_dashboard_regresion_models.py') }}" 
-                       class="btn btn-execute" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='07_dashboard_regresion_models.py') }}" class="btn btn-execute">
                         <i class="fas fa-magic me-2"></i> Ver Predicciones
                     </a>
                 </div>
@@ -148,8 +109,7 @@
                     <i class="fas fa-network-wired spark-icon"></i>
                     <h4 class="fw-bold">Clasificador</h4>
                     <p class="text-muted small">Árboles de decisión para calificar la calidad y el éxito de venta de cada especie.</p>
-                    <a href="{{ url_for('main.run_spark', script='09_dashboard_arboldedecision.py') }}" 
-                       class="btn btn-execute" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='09_dashboard_arboldedecision.py') }}" class="btn btn-execute">
                         <i class="fas fa-sitemap me-2"></i> Clasificar
                     </a>
                 </div>
@@ -163,8 +123,7 @@
                     <i class="fas fa-file-invoice spark-icon"></i>
                     <h4 class="fw-bold">Estado General</h4>
                     <p class="text-muted small">Documentación técnica autogenerada sobre el estado del clúster y la base de datos.</p>
-                    <a href="{{ url_for('main.run_spark', script='reporte.py') }}" 
-                       class="btn btn-outline-success border-2 fw-bold w-100 py-2" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='reporte.py') }}" class="btn btn-outline-success border-2 fw-bold w-100 py-2">
                         <i class="fas fa-file-download me-2"></i> Generar Reporte
                     </a>
                 </div>
@@ -178,43 +137,62 @@
                     <i class="fas fa-vial spark-icon"></i>
                     <h4 class="fw-bold">Lab de Gráficos</h4>
                     <p class="text-muted small">Espacio de visualización experimental con Plotly para análisis de correlación profunda.</p>
-                    <a href="{{ url_for('main.run_spark', script='regresion_analytics_graficos_dash.py') }}" 
-                       class="btn btn-outline-success border-2 fw-bold w-100 py-2" target="_blank">
+                    <a href="{{ url_for('main.run_spark', script='regresion_analytics_graficos_dash.py') }}" class="btn btn-outline-success border-2 fw-bold w-100 py-2">
                         <i class="fas fa-eye me-2"></i> Explorar Datos
                     </a>
                 </div>
                 <i class="fas fa-flask leaf-decoration"></i>
             </div>
         </div>
-
     </div>
 </div>
 
-<div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-white border-success">
-            <div class="modal-body text-center p-5">
-                <div class="spinner-border text-success mb-3" role="status" style="width: 3.5rem; height: 3.5rem;"></div>
-                <h3 class="fw-bold">Procesando ADN de Datos...</h3>
-                <p class="text-muted">Spark está distribuyendo la carga de trabajo en el clúster. La nueva pestaña se abrirá en breve.</p>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    document.querySelectorAll('.btn-execute, .btn-outline-success').forEach(button => {
-        button.addEventListener('click', function() {
-            const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
-            modal.show();
-            
-            // Cerrar el modal automáticamente después de 4 segundos
-            setTimeout(() => {
-                modal.hide();
-            }, 4000);
-        });
+// Lógica original de los botones
+document.querySelectorAll('.btn-execute, .btn-outline-success').forEach(button => {
+    button.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        modal.show();
+        setTimeout(() => { modal.hide(); }, 4000);
     });
+});
+
+// Función para detener servidores (Cierra cualquier sesión en 8501)
+function detenerServidores() {
+    if(confirm("¿Estás seguro de cerrar todas las sesiones de análisis activas?")) {
+        fetch('/stop_all_spark')
+            .then(response => response.json())
+            .then(data => {
+                const alertDiv = document.getElementById('status-alert');
+                const msgDiv = document.getElementById('status-msg');
+                alertDiv.classList.remove('d-none');
+                msgDiv.className = "alert py-2 small mb-0 alert-warning";
+                msgDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i> ${data.message}`;
+            });
+    }
+}
+
+// Función para verificar si el servidor Spark está corriendo
+function verificarEstado() {
+    fetch('/check_spark_status')
+        .then(response => response.json())
+        .then(data => {
+            const alertDiv = document.getElementById('status-alert');
+            const msgDiv = document.getElementById('status-msg');
+            alertDiv.classList.remove('d-none');
+            
+            if (data.active) {
+                msgDiv.className = "alert py-2 small mb-0 alert-success";
+                msgDiv.innerHTML = `<i class="fas fa-signal me-2"></i> Servidor Spark ACTIVO en puerto 8501.`;
+            } else {
+                msgDiv.className = "alert py-2 small mb-0 alert-secondary";
+                msgDiv.innerHTML = `<i class="fas fa-power-off me-2"></i> Servidor Spark DETENIDO. Recursos liberados.`;
+            }
+        });
+}
 </script>
 {% endblock %}

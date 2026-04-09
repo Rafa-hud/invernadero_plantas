@@ -9,7 +9,7 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
 
-# Insertamos la raíz al principio de sys.path para que encuentre la carpeta 'config' antes que nada
+# Insertamos la raíz al principio de sys.path para que encuentre el paquete 'app'
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
@@ -19,18 +19,18 @@ try:
 except ImportError:
     st.error("Falta la librería 'setuptools'. Ejecuta: pip install setuptools")
 
-# --- 3. IMPORTACIONES DINÁMICAS ---
+# --- 3. IMPORTACIONES DINÁMICAS (CORREGIDO PARA APP/CONFIG) ---
 try:
     from pyspark.ml.clustering import KMeans
     from pyspark.ml.evaluation import ClusteringEvaluator
     
-    # Importamos usando el nombre del paquete completo para evitar conflictos con config.py de la raíz
-    import config.mongo_spark_conexion_sinnulos as conn
-    get_spark_session = conn.get_spark_session
+    # IMPORTANTE: Ahora importamos desde app.config
+    from app.config.mongo_spark_conexion_sinnulos import get_spark_session
     
 except Exception as e:
     st.error(f"❌ Error de importación: {e}")
-    st.info(f"Ruta actual de búsqueda: {root_dir}")
+    # Mostramos la ruta de búsqueda para confirmar que subió correctamente a la raíz
+    st.info(f"Ruta raíz detectada: {root_dir}")
     st.stop()
 
 # --- 4. CONFIGURACIÓN DE INTERFAZ ---
@@ -44,7 +44,7 @@ k_value = st.sidebar.slider("Cantidad de Clusters (K)", 2, 6, 3)
 # --- 5. PIPELINE DE DATOS ---
 @st.cache_resource
 def ejecutar_pipeline_kmeans(k):
-    # Obtenemos la sesión configurada para Java 11
+    # Obtenemos la sesión configurada y el dataframe vectorizado
     spark, df_full, df_vector = get_spark_session()
 
     # Entrenamiento del modelo KMeans
@@ -63,7 +63,7 @@ def ejecutar_pipeline_kmeans(k):
 
 # --- 6. RENDERIZADO DEL DASHBOARD ---
 try:
-    with st.spinner("Procesando datos desde MongoDB Atlas..."):
+    with st.spinner("Procesando ADN de datos desde MongoDB Atlas..."):
         data, score = ejecutar_pipeline_kmeans(k_value)
 
     # KPIs Principales
@@ -107,8 +107,4 @@ try:
 
 except Exception as e:
     st.error(f"Error crítico: {e}")
-    st.info("Asegúrate de que la carpeta 'config' tenga el archivo '__init__.py'")
-
-
-    #export PYTHONPATH=$PYTHONPATH:
-   # .streamlit run spark/04_dashboard_kmeans.py
+    st.info("Verifica que app/config/__init__.py esté vacío.")

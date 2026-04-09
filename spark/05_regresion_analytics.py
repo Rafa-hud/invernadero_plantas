@@ -16,7 +16,7 @@ except ImportError:
     st.error("Falta la librería 'setuptools'. Ejecuta: pip install setuptools")
 
 # --- 3. IMPORTACIONES DE SPARK ---
-from config.mongo_spark_conexion_sinnulos import get_spark_session
+from app.config.mongo_spark_conexion_sinnulos import get_spark_session
 from pyspark.ml.feature import VectorAssembler, PolynomialExpansion
 from pyspark.ml.regression import LinearRegression
 from pyspark.ml.evaluation import RegressionEvaluator

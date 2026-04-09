@@ -4,7 +4,7 @@ import os
 # Esto permite que Python encuentre la carpeta 'config' desde la terminal
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config.mongo_spark_conexion_sinnulos import get_spark_session
+from app.config.mongo_spark_conexion_sinnulos import get_spark_session
 from pyspark.sql.functions import sum
 
 # Obtenemos la sesión y el DataFrame

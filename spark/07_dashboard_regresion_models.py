@@ -4,9 +4,11 @@ import streamlit as st
 import pandas as pd
 
 # --- 1. CONFIGURACIÓN DE RUTAS Y ENTORNO ---
-# Forzamos la ruta raíz para encontrar 'config', 'ml_algorithms' y 'processing'
+# Obtenemos la ruta absoluta de la carpeta raíz 'Invernadero_plantas-'
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
+
+# Insertamos la raíz al inicio para que encuentre el paquete 'app'
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
@@ -16,10 +18,12 @@ try:
 except ImportError:
     st.error("Falta 'setuptools'. Ejecuta: pip install setuptools")
 
-# --- 2. IMPORTACIONES DINÁMICAS ---
+# --- 2. IMPORTACIONES DINÁMICAS (CORREGIDO PARA APP/CONFIG) ---
 try:
-    from config.mongo_spark_conexion_sinnulos import get_spark_session
-    # Asegúrate de que estos archivos existan en tus carpetas ml_algorithms y processing
+    # IMPORTANTE: Ahora la ruta incluye 'app'
+    from app.config.mongo_spark_conexion_sinnulos import get_spark_session
+    
+    # Importaciones de algoritmos y procesamiento
     from ml_algorithms.regresion_analytics_modelos_dash import ejecutar_modelos
     from processing.regresion_analytics_graficos_dash import (
         grafica_dispersion,
@@ -29,6 +33,7 @@ try:
     )
 except ImportError as e:
     st.error(f"❌ Error al importar módulos internos: {e}")
+    st.info(f"Asegúrate de que 'app/config' tenga un __init__.py vacío.")
     st.stop()
 
 # --- 3. CONFIGURACIÓN DEL DASHBOARD ---
@@ -57,21 +62,21 @@ except Exception as e:
 # --- 5. FILTROS INTERACTIVOS ---
 st.sidebar.header("🛠️ Filtros de Datos")
 
-# Obtenemos lista de productos únicos desde Spark
 try:
+    # Obtenemos lista de productos únicos desde Spark
     productos_list = df.select("producto").distinct().toPandas()["producto"].tolist()
     producto_sel = st.sidebar.selectbox(
         "Seleccionar Producto",
         ["Todos"] + sorted(productos_list)
     )
 
-    # Aplicar filtro
+    # Aplicar filtro en Spark
     if producto_sel != "Todos":
         df_filtrado = df.filter(df.producto == producto_sel)
     else:
         df_filtrado = df
 
-    # IMPORTANTE: Persistir en memoria para no re-leer de Atlas en cada gráfica
+    # Persistir en memoria para optimizar el clúster
     df_filtrado = df_filtrado.cache()
     df_pandas = df_filtrado.toPandas()
 
@@ -86,7 +91,6 @@ if not df_pandas.empty:
     col1, col2 = st.columns(2)
 
     with col1:
-        # Nota: Asegúrate que esta función use la columna 'stock' y no 'cantidad'
         st.markdown("**Relación Stock vs Ingreso**")
         fig1 = grafica_dispersion(df_pandas)
         st.plotly_chart(fig1, use_container_width=True)
@@ -107,9 +111,9 @@ st.divider()
 st.subheader("🤖 Entrenamiento de Modelos de Regresión")
 
 if st.button("Ejecutar Comparativa de Modelos"):
-    with st.spinner("Entrenando modelos en Spark..."):
+    with st.spinner("Entrenando modelos en el clúster Spark..."):
         try:
-            # Esta función debe devolver un DataFrame de resultados y las predicciones
+            # Ejecución de modelos predictivos
             resultados, predicciones = ejecutar_modelos(df_filtrado)
             
             # Gráfica de comparación de R2
@@ -122,9 +126,11 @@ if st.button("Ejecutar Comparativa de Modelos"):
             st.success("Modelos entrenados exitosamente.")
         except Exception as e:
             st.error(f"Error durante el entrenamiento: {e}")
-            st.info("Revisa que la columna 'stock' esté siendo procesada correctamente en ml_algorithms.")
+            st.info("Revisa que los datos de stock y precio no contengan nulos en Atlas.")
 
-# Botón para limpiar caché y cerrar sesión si es necesario
-if st.sidebar.button("Cerrar Sesión Spark"):
-    spark.stop()
-    st.sidebar.success("Sesión cerrada.")
+# Barra lateral para gestión de recursos
+with st.sidebar:
+    st.divider()
+    if st.button("Cerrar Sesión Spark", help="Libera memoria del clúster"):
+        spark.stop()
+        st.success("Sesión cerrada correctamente.")

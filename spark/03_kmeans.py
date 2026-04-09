@@ -16,7 +16,7 @@ except ImportError:
     print("Falta la librería 'setuptools'. Ejecuta: pip install setuptools")
 
 # --- 3. IMPORTACIONES ---
-from config.mongo_spark_conexion_sinnulos import get_spark_session
+from app.config.mongo_spark_conexion_sinnulos import get_spark_session
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.evaluation import ClusteringEvaluator
 from pyspark.sql.functions import col

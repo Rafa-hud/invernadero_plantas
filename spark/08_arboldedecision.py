@@ -6,7 +6,7 @@ from pyspark.ml.classification import DecisionTreeClassifier
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 # Importamos tu función que carga datos desde Mongo
-from config.mongo_spark_conexion_sinnulos import get_spark_session
+from app.config.mongo_spark_conexion_sinnulos import get_spark_session
 
 
 # 2. Cargar datos

@@ -4,26 +4,33 @@ import streamlit as st
 import importlib.util
 import time
 
-# --- BLOQUE DE IMPORTACIÓN DINÁMICA ---
+# --- BLOQUE DE IMPORTACIÓN DINÁMICA (ACTUALIZADO PARA LA NUEVA ESTRUCTURA) ---
 def cargar_conexion_dinamica():
+    # 1. Obtenemos la raíz (Invernadero_plantas-) subiendo un nivel desde /spark
     root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    path_config = os.path.join(root_path, 'config', 'mongo_spark_conexion_sinnulos.py')
+    
+    # 2. RUTA CORREGIDA: Ahora incluimos 'app' en el camino
+    path_config = os.path.join(root_path, 'app', 'config', 'mongo_spark_conexion_sinnulos.py')
     
     if not os.path.exists(path_config):
+        # Mostramos la ruta exacta en pantalla para depuración si falla
         st.error(f"❌ No se encontró el archivo de configuración en: {path_config}")
+        st.info("Verifica que la carpeta 'config' esté dentro de 'app'.")
         st.stop()
 
-    spec = importlib.util.spec_from_file_location("modulo_conexion", path_config)
+    # 3. Importación segura del módulo
+    spec = importlib.util.spec_from_file_location("conexion_db", path_config)
     modulo = importlib.util.module_from_spec(spec)
-    sys.modules["modulo_conexion"] = modulo
+    sys.modules["conexion_db"] = modulo 
     spec.loader.exec_module(modulo)
     
+    # Retornamos la función que definimos en el archivo de conexión
     return modulo.get_spark_session
 
 try:
     get_spark_session = cargar_conexion_dinamica()
 except Exception as e:
-    st.error(f"❌ Error al cargar la conexión: {e}")
+    st.error(f"❌ Error crítico de rutas: {e}")
     st.stop()
 
 # --- IMPORTACIONES DE SPARK ---
@@ -39,13 +46,13 @@ st.subheader("Ingresos Potenciales por Especie (MapReduce)")
 @st.cache_data(show_spinner=False)
 def obtener_datos_mapreduce():
     try:
-        # Obtenemos sesión y dataframe
+        # Obtenemos sesión y dataframe (ahora retorna 3 valores: spark, df, df_vector)
         spark, df, _ = get_spark_session()
         
-        # Guardamos la sesión en el estado de Streamlit para poder cerrarla después
+        # Guardamos la sesión para poder cerrarla después
         st.session_state['spark_session'] = spark
         
-        # Procesamiento Spark
+        # Procesamiento Spark: Agrupación por producto (Map) y suma de ingresos (Reduce)
         resultado = df.groupBy("producto") \
                       .agg(sum("ingreso").alias("total_ingreso")) \
                       .orderBy(col("total_ingreso").desc())
@@ -56,7 +63,7 @@ def obtener_datos_mapreduce():
         return None
 
 # --- RENDERIZADO ---
-with st.spinner("🚀 Procesando datos en el clúster..."):
+with st.spinner("🚀 Procesando ADN de Datos en el clúster..."):
     datos_grafica = obtener_datos_mapreduce()
 
 if datos_grafica is not None and not datos_grafica.empty:
@@ -72,7 +79,7 @@ if datos_grafica is not None and not datos_grafica.empty:
         st.write("### 📊 Gráfica de Ingresos")
         st.bar_chart(data=datos_grafica, x="producto", y="total_ingreso", color="#28a745")
 else:
-    st.warning("⚠️ Sin datos. Verifica la colección en MongoDB.")
+    st.warning("⚠️ Sin datos. Verifica la conexión con MongoDB Atlas.")
 
 # --- SIDEBAR CON CONTROL DE SERVIDOR ---
 with st.sidebar:
@@ -84,25 +91,13 @@ with st.sidebar:
     
     st.divider()
     
-    # Botón para cerrar el servidor de Spark
-    if st.button("🛑 Cerrar Servidor Spark", help="Libera los recursos del clúster y detiene el motor de analítica"):
+    if st.button("🛑 Cerrar Servidor Spark"):
         if 'spark_session' in st.session_state:
             try:
-                with st.status("Apagando motor de analítica...", expanded=True) as status:
-                    st.write("Cerrando sesión de Spark...")
-                    st.session_state['spark_session'].stop() # Comando para cerrar el servidor
-                    
-                    # Limpiamos el estado
-                    del st.session_state['spark_session']
-                    st.cache_data.clear()
-                    
-                    st.write("✅ Servidor detenido con éxito.")
-                    status.update(label="Servidor de Spark Cerrado", state="complete", expanded=False)
-                
-                st.success("Analítica detenida. Puedes cerrar esta pestaña.")
-                time.sleep(2)
-                st.stop() # Detiene la ejecución de Streamlit
+                st.session_state['spark_session'].stop() 
+                del st.session_state['spark_session']
+                st.cache_data.clear()
+                st.success("✅ Servidor detenido. Puedes cerrar esta pestaña.")
+                st.stop() 
             except Exception as e:
                 st.error(f"Error al cerrar Spark: {e}")
-        else:
-            st.info("No hay ninguna sesión de Spark activa para cerrar.")
