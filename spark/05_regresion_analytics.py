@@ -1,12 +1,26 @@
 # LABORATORIO DE MACHINE LEARNING CON SPARK - COMPARACIÓN DE MODELOS DE REGRESIÓN
 import streamlit as st
+import sys
+import os
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# --- 1. CONFIGURACIÓN DE RUTAS (Solución al ModuleNotFoundError) ---
+# Obtenemos la ruta raíz para que encuentre la carpeta 'config'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# --- 2. COMPATIBILIDAD PYTHON 3.12 ---
+try:
+    import setuptools
+except ImportError:
+    st.error("Falta la librería 'setuptools'. Ejecuta: pip install setuptools")
+
+# --- 3. IMPORTACIONES DE SPARK ---
 from config.mongo_spark_conexion_sinnulos import get_spark_session
 from pyspark.ml.feature import VectorAssembler, PolynomialExpansion
 from pyspark.ml.regression import LinearRegression
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
-import matplotlib.pyplot as plt
-import pandas as pd
 
 # Título para la interfaz de Streamlit
 st.title("Análisis de Regresión de Plantas")
@@ -16,8 +30,16 @@ st.title("Análisis de Regresión de Plantas")
 spark, df, _ = get_spark_session()
 
 st.write("### Dataset cargado desde MongoDB Atlas")
-# Aseguramos que solo trabajamos con registros que tengan ingreso (precio * stock)
-df = df.filter(df.ingreso > 0).cache() # Cache para evitar múltiples viajes a la nube
+
+# LIMPIEZA PREVENTIVA: Borramos columnas de características si existen por ejecuciones previas
+def limpiar_columnas(df_input):
+    for col_name in ["features", "poly_features", "prediction"]:
+        if col_name in df_input.columns:
+            df_input = df_input.drop(col_name)
+    return df_input
+
+# Aseguramos que solo trabajamos con registros que tengan ingreso
+df = df.filter(df.ingreso > 0).cache() 
 st.dataframe(df.limit(5).toPandas())
 
 # 2 DIVISIÓN DEL DATASET
@@ -30,25 +52,24 @@ evaluator = RegressionEvaluator(
     metricName="r2"
 )
 
-# 4 FUNCIÓN PARA CREAR GRÁFICAS (Compatible con Streamlit)
+# 4 FUNCIÓN PARA CREAR GRÁFICAS
 def graficar(predictions, titulo):
     pdf = predictions.select("stock", "ingreso", "prediction").toPandas()
     fig, ax = plt.subplots(figsize=(10, 5))
-    
     ax.scatter(pdf["stock"], pdf["ingreso"], label="Real", alpha=0.6, color='blue')
     ax.scatter(pdf["stock"], pdf["prediction"], label="Predicción", marker='x', color='red')
-    
     ax.set_title(titulo)
     ax.set_xlabel("Stock (Unidades)")
     ax.set_ylabel("Ingreso ($)")
     ax.legend()
     ax.grid(True, linestyle='--', alpha=0.7)
-    
-    # IMPORTANTE: Usar st.pyplot en lugar de plt.show()
     st.pyplot(fig)
 
 # --- MODELO 1: REGRESIÓN LINEAL SIMPLE ---
 st.subheader("Modelo 1: Regresión Lineal Simple")
+train = limpiar_columnas(train)
+test = limpiar_columnas(test)
+
 assembler_simple = VectorAssembler(inputCols=["stock"], outputCol="features")
 train_simple = assembler_simple.transform(train)
 test_simple = assembler_simple.transform(test)
@@ -63,9 +84,13 @@ graficar(pred_simple, "Regresión Lineal Simple (Stock vs Ingreso)")
 
 # --- MODELO 2: REGRESIÓN LINEAL MÚLTIPLE ---
 st.subheader("Modelo 2: Regresión Lineal Múltiple")
+# Limpiamos antes de re-ensamblar con más columnas
+train_m = limpiar_columnas(train)
+test_m = limpiar_columnas(test)
+
 assembler_multiple = VectorAssembler(inputCols=["stock", "precio"], outputCol="features")
-train_multiple = assembler_multiple.transform(train)
-test_multiple = assembler_multiple.transform(test)
+train_multiple = assembler_multiple.transform(train_m)
+test_multiple = assembler_multiple.transform(test_m)
 
 lr_multiple = LinearRegression(featuresCol="features", labelCol="ingreso")
 model_multiple = lr_multiple.fit(train_multiple)
@@ -75,17 +100,12 @@ r2_multiple = evaluator.evaluate(pred_multiple)
 st.info(f"R2 Múltiple: **{r2_multiple:.4f}**")
 graficar(pred_multiple, "Regresión Lineal Múltiple (Stock + Precio)")
 
-# --- MODELO 3: RIDGE REGRESSION ---
-ridge = LinearRegression(featuresCol="features", labelCol="ingreso", regParam=0.5, elasticNetParam=0)
-model_ridge = ridge.fit(train_multiple)
-pred_ridge = model_ridge.transform(test_multiple)
-r2_ridge = evaluator.evaluate(pred_ridge)
+# --- MODELOS 3 Y 4: RIDGE Y LASSO ---
+model_ridge = LinearRegression(featuresCol="features", labelCol="ingreso", regParam=0.5, elasticNetParam=0).fit(train_multiple)
+r2_ridge = evaluator.evaluate(model_ridge.transform(test_multiple))
 
-# --- MODELO 4: LASSO REGRESSION ---
-lasso = LinearRegression(featuresCol="features", labelCol="ingreso", regParam=0.5, elasticNetParam=1)
-model_lasso = lasso.fit(train_multiple)
-pred_lasso = model_lasso.transform(test_multiple)
-r2_lasso = evaluator.evaluate(pred_lasso)
+model_lasso = LinearRegression(featuresCol="features", labelCol="ingreso", regParam=0.5, elasticNetParam=1).fit(train_multiple)
+r2_lasso = evaluator.evaluate(model_lasso.transform(test_multiple))
 
 # --- MODELO 5: REGRESIÓN POLINÓMICA ---
 st.subheader("Modelo 5: Regresión Polinómica")
@@ -101,23 +121,12 @@ st.info(f"R2 Polinómica: **{r2_poly:.4f}**")
 graficar(pred_poly, "Regresión Polinómica (Grado 2)")
 
 # --- MODELO 6: CROSS VALIDATION ---
-# Reducimos pliegues a 2 para evitar el "SocketTimeoutException" en Atlas
 st.subheader("Modelo 6: Cross Validation (Optimizado)")
 lr_cv = LinearRegression(featuresCol="features", labelCol="ingreso")
-paramGrid = ParamGridBuilder() \
-    .addGrid(lr_cv.regParam, [0.1, 1.0]) \
-    .addGrid(lr_cv.elasticNetParam, [0, 1]) \
-    .build()
-
-cv = CrossValidator(
-    estimator=lr_cv, 
-    estimatorParamMaps=paramGrid, 
-    evaluator=evaluator, 
-    numFolds=2 # Reducción para estabilidad
-)
+paramGrid = ParamGridBuilder().addGrid(lr_cv.regParam, [0.1, 1.0]).build()
+cv = CrossValidator(estimator=lr_cv, estimatorParamMaps=paramGrid, evaluator=evaluator, numFolds=2)
 model_cv = cv.fit(train_multiple)
-pred_cv = model_cv.transform(test_multiple)
-r2_cv = evaluator.evaluate(pred_cv)
+r2_cv = evaluator.evaluate(model_cv.transform(test_multiple))
 
 # --- COMPARACIÓN FINAL ---
 st.divider()
@@ -131,13 +140,11 @@ resultados = {
     "Cross Validation": r2_cv
 }
 
-# Mostrar tabla de comparación
 res_df = pd.DataFrame(list(resultados.items()), columns=["Modelo", "R2 Score"])
 st.table(res_df)
 
 mejor = max(resultados, key=resultados.get)
 st.success(f"### EL MEJOR MODELO ES: {mejor.upper()}")
 
-# Finalizar y limpiar
+# Limpiar
 df.unpersist()
-spark.stop()

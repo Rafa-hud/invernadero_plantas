@@ -1940,3 +1940,44 @@ def debug_set_cliente():
 def debug_set_admin():
     flash('Esta función de debug fue deshabilitada en la migración', 'warning')
     return redirect(url_for('main.dashboard'))
+
+import subprocess
+import os
+import sys
+from flask import redirect, current_app, flash, url_for
+
+@main_bp.route('/run_spark/<script>')
+def run_spark(script):
+    # 1. Obtener la ruta raíz (donde está la carpeta config y spark)
+    # current_app.root_path apunta a /app, subimos un nivel
+    base_dir = os.path.abspath(os.path.join(current_app.root_path, ".."))
+    script_path = os.path.join(base_dir, "spark", script)
+
+    if not os.path.exists(script_path):
+        flash(f"El script {script} no existe.", "danger")
+        return redirect(url_for('main.reportes'))
+
+    try:
+        # 2. Configurar el entorno de Python
+        env = os.environ.copy()
+        # Forzamos a que la raíz del proyecto sea la prioridad de búsqueda
+        env["PYTHONPATH"] = base_dir 
+        
+        # 3. Comando de ejecución
+        if "dashboard" in script or "graficos" in script:
+            # Ejecutamos Streamlit como módulo de Python para mantener el entorno
+            comando = [sys.executable, "-m", "streamlit", "run", script_path, "--server.port", "8501"]
+        else:
+            comando = [sys.executable, script_path]
+
+        # 4. LANZAR PROCESO (Clave: cwd=base_dir)
+        # cwd asegura que el script se ejecute "parado" en la raíz del proyecto
+        subprocess.Popen(comando, env=env, cwd=base_dir)
+        
+        print(f"🚀 Ejecutando desde la raíz: {base_dir}")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        flash("Error al iniciar el proceso.", "danger")
+
+    return redirect("http://localhost:8501")

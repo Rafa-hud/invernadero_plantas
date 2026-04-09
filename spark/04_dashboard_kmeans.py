@@ -110,4 +110,5 @@ except Exception as e:
     st.info("Asegúrate de que la carpeta 'config' tenga el archivo '__init__.py'")
 
 
-    #export PYTHONPATH=$PYTHONPATH:.streamlit run spark/04_dashboard_kmeans.py
+    #export PYTHONPATH=$PYTHONPATH:
+   # .streamlit run spark/04_dashboard_kmeans.py
